@@ -8,33 +8,36 @@ import { getChanges } from "../utils/diff.utils.js";
 /* ================= GET ALL USERS ================= */
 export const getAllUsers = async (req, res) => {
     try {
-
         const users = await User.find()
             .select("-password")
             .sort({ createdAt: -1 });
 
         res.json(users);
-
     } catch (error) {
-
         res.status(500).json({
             message: "Failed to fetch users"
         });
-
     }
 };
 
 
 /* ================= CREATE USER ================= */
 export const createUser = async (req, res) => {
-
     try {
+        const {
+            userId,
+            password,
+            role,
+            salaryType,
+            salaryAmount,
+            name,
+            phone
+        } = req.body;
 
-        const { userId, password, role } = req.body;
-
+        /* ================= BASIC VALIDATION ================= */
         if (!userId || !password || !role) {
             return res.status(400).json({
-                message: "All fields are required"
+                message: "userId, password, role are required"
             });
         }
 
@@ -46,12 +49,42 @@ export const createUser = async (req, res) => {
             });
         }
 
+        /* ================= ROLE BASED VALIDATION ================= */
+
+        if (["manager", "employee"].includes(role)) {
+            if (!salaryAmount) {
+                return res.status(400).json({
+                    message: "Monthly salary required for employee/manager"
+                });
+            }
+        }
+
+        if (role === "labour") {
+            if (!salaryType || !salaryAmount) {
+                return res.status(400).json({
+                    message: "Labour must have salaryType and salaryAmount"
+                });
+            }
+
+            if (!["daily", "weekly", "monthly"].includes(salaryType)) {
+                return res.status(400).json({
+                    message: "Invalid salary type for labour"
+                });
+            }
+        }
+
+        /* ================= HASH PASSWORD ================= */
         const hashedPassword = await bcrypt.hash(password, 10);
 
+        /* ================= CREATE USER ================= */
         const user = await User.create({
             userId,
             password: hashedPassword,
-            role
+            role,
+            salaryType: role === "labour" ? salaryType : "monthly",
+            salaryAmount: salaryAmount || 0,
+            name,
+            phone
         });
 
         res.status(201).json({
@@ -60,11 +93,15 @@ export const createUser = async (req, res) => {
                 _id: user._id,
                 userId: user.userId,
                 role: user.role,
+                salaryType: user.salaryType,
+                salaryAmount: user.salaryAmount,
+                name: user.name,
+                phone: user.phone,
                 isActive: user.isActive
             }
         });
 
-        /* AUDIT */
+        /* ================= AUDIT ================= */
         await logAudit({
             actor: req.user._id,
             action: AUDIT_ACTIONS.CREATE,
@@ -74,23 +111,25 @@ export const createUser = async (req, res) => {
         });
 
     } catch (error) {
-
         res.status(500).json({
-            message: "Failed to create user"
+            message: error.message || "Failed to create user"
         });
-
     }
-
 };
 
 
 /* ================= UPDATE USER ================= */
 export const updateUser = async (req, res) => {
-
     try {
-
         const { id } = req.params;
-        const { role, isActive } = req.body;
+        const {
+            role,
+            isActive,
+            salaryType,
+            salaryAmount,
+            name,
+            phone
+        } = req.body;
 
         const user = await User.findById(id);
 
@@ -100,13 +139,24 @@ export const updateUser = async (req, res) => {
             });
         }
 
-        /* Capture old data BEFORE update */
         const oldUser = user.toObject();
 
+        /* ================= UPDATE FIELDS ================= */
         if (role) user.role = role;
+        if (typeof isActive === "boolean") user.isActive = isActive;
+        if (name !== undefined) user.name = name;
+        if (phone !== undefined) user.phone = phone;
 
-        if (typeof isActive === "boolean") {
-            user.isActive = isActive;
+        /* ================= SALARY LOGIC ================= */
+
+        if (user.role === "labour") {
+            if (salaryType) user.salaryType = salaryType;
+        } else {
+            user.salaryType = "monthly"; // force
+        }
+
+        if (salaryAmount !== undefined) {
+            user.salaryAmount = salaryAmount;
         }
 
         await user.save();
@@ -117,7 +167,7 @@ export const updateUser = async (req, res) => {
             message: "User updated successfully"
         });
 
-        /* AUDIT */
+        /* ================= AUDIT ================= */
         await logAudit({
             actor: req.user._id,
             action: AUDIT_ACTIONS.UPDATE,
@@ -128,21 +178,16 @@ export const updateUser = async (req, res) => {
         });
 
     } catch (error) {
-
         res.status(500).json({
-            message: "Failed to update user"
+            message: error.message || "Failed to update user"
         });
-
     }
-
 };
 
 
 /* ================= RESET PASSWORD ================= */
 export const updateUserPassword = async (req, res) => {
-
     try {
-
         const { id } = req.params;
         const { newPassword } = req.body;
 
@@ -168,7 +213,6 @@ export const updateUserPassword = async (req, res) => {
             message: "Password updated successfully"
         });
 
-        /* AUDIT */
         await logAudit({
             actor: req.user._id,
             action: AUDIT_ACTIONS.PASSWORD_RESET,
@@ -178,30 +222,25 @@ export const updateUserPassword = async (req, res) => {
         });
 
     } catch (error) {
-
         res.status(500).json({
             message: "Failed to update password"
         });
-
     }
-
 };
 
 
 /* ================= DELETE USER (SOFT) ================= */
 export const deleteUser = async (req, res) => {
-
     try {
-
         const { id } = req.params;
-
-        const user = await User.findById(id);
 
         if (req.user._id.toString() === id) {
             return res.status(400).json({
                 message: "You cannot deactivate yourself"
             });
         }
+
+        const user = await User.findById(id);
 
         if (!user) {
             return res.status(404).json({
@@ -217,7 +256,6 @@ export const deleteUser = async (req, res) => {
             message: "User deactivated successfully"
         });
 
-        /* AUDIT */
         await logAudit({
             actor: req.user._id,
             action: AUDIT_ACTIONS.DELETE,
@@ -227,11 +265,8 @@ export const deleteUser = async (req, res) => {
         });
 
     } catch (error) {
-
         res.status(500).json({
             message: "Failed to delete user"
         });
-
     }
-
 };

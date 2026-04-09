@@ -28,6 +28,10 @@ import reminderRoutes from "./routes/reminder.routes.js";
 import attendanceRoutes from "./routes/attendance.routes.js";
 import advanceRoutes from "./routes/advance.routes.js";
 import heroMediaRoutes from "./routes/heroMedia.routes.js";
+import employeeReportRoutes from "./routes/employeeReport.routes.js";
+import salaryRoutes from "./routes/salary.routes.js";
+import employeeDashboardRoutes from "./routes/employeeDashboard.routes.js";
+
 
 const app = express();
 
@@ -84,6 +88,9 @@ app.use("/api/reminders", reminderRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/advance", advanceRoutes);
 app.use("/api/hero-media", heroMediaRoutes);
+app.use("/api/employee-report", employeeReportRoutes);
+app.use("/api/salary", salaryRoutes);
+app.use("/api/employee-dashboard", employeeDashboardRoutes);
 
 /* ================= HEALTH CHECK ================= */
 

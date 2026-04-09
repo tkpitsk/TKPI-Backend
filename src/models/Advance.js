@@ -11,6 +11,7 @@ const advanceSchema = new mongoose.Schema(
         amount: {
             type: Number,
             required: true,
+            min: [0, "Advance amount cannot be negative"],
         },
 
         date: {
@@ -24,9 +25,18 @@ const advanceSchema = new mongoose.Schema(
             required: true,
         },
 
-        note: String,
+        note: {
+            type: String,
+            trim: true,
+        },
     },
     { timestamps: true }
+);
+
+/* 🔥 PREVENT DUPLICATE ADVANCE PER DAY */
+advanceSchema.index(
+    { employee: 1, date: 1 },
+    { unique: true }
 );
 
 export default mongoose.model("Advance", advanceSchema);

@@ -28,9 +28,18 @@ const attendanceSchema = new mongoose.Schema(
     { timestamps: true }
 );
 
+/* 🔥 ENSURE ONE RECORD PER DAY */
 attendanceSchema.index(
     { employee: 1, date: 1 },
     { unique: true }
 );
+
+/* 🔥 NORMALIZE DATE (IMPORTANT) */
+attendanceSchema.pre("save", function (next) {
+    if (this.date) {
+        this.date.setHours(0, 0, 0, 0);
+    }
+    next();
+});
 
 export default mongoose.model("Attendance", attendanceSchema);

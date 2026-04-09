@@ -9,6 +9,12 @@ import SalesInvoice from "../models/SalesInvoice.js";
 import { salesInvoiceTemplate } from "../pdf/templates/salesInvoice.template.js";
 import SalesOrder from "../models/SalesOrder.js";
 import { salesOrderTemplate } from "../pdf/templates/salesOrder.template.js";
+import User from "../models/User.js";
+import Attendance from "../models/Attendance.js";
+import Advance from "../models/Advance.js";
+import { employeeReportTemplate } from "../pdf/templates/employeeReport.template.js";
+import { calculateSalary } from "../services/salary.service.js";
+import { salarySlipTemplate } from "../pdf/templates/salarySlip.template.js";
 
 
 /* ================= ENQUIRY PDF ================= */
@@ -314,6 +320,114 @@ export const downloadSalesOrderPDF = async (req, res) => {
     } catch (error) {
         res.status(500).json({
             message: "Failed to generate order PDF"
+        });
+    }
+};
+
+
+export const downloadEmployeeReportPDF = async (req, res) => {
+    try {
+        const { employeeId, start, end, type } = req.query;
+
+        const employee = await User.findById(employeeId);
+
+        if (!employee) {
+            return res.status(404).json({ message: "Employee not found" });
+        }
+
+        const attendance = await Attendance.find({
+            employee: employeeId,
+            date: { $gte: new Date(start), $lte: new Date(end) }
+        });
+
+        const advances = await Advance.find({
+            employee: employeeId,
+            date: { $gte: new Date(start), $lte: new Date(end) }
+        });
+
+        const advanceMap = new Map();
+        advances.forEach(a => {
+            advanceMap.set(
+                new Date(a.date).toDateString(),
+                a.amount
+            );
+        });
+
+        const records = attendance.map(a => ({
+            date: a.date,
+            status: a.status,
+            advance: advanceMap.get(new Date(a.date).toDateString()) || 0
+        }));
+
+        /* SUMMARY */
+        let present = 0, absent = 0, halfDay = 0;
+
+        attendance.forEach(a => {
+            if (a.status === "present") present++;
+            else if (a.status === "absent") absent++;
+            else halfDay++;
+        });
+
+        const totalAdvance = advances.reduce((sum, a) => sum + a.amount, 0);
+
+        const html = employeeReportTemplate({
+            employee,
+            records,
+            summary: { present, absent, halfDay, totalAdvance },
+            title: `${type.toUpperCase()} REPORT`
+        });
+
+        const pdfBuffer = await generatePDF(html);
+
+        res.set({
+            "Content-Type": "application/pdf",
+            "Content-Disposition": `attachment; filename=${type}-report.pdf`
+        });
+
+        res.send(pdfBuffer);
+
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
+
+export const downloadSalarySlipPDF = async (req, res) => {
+    try {
+        const { employeeId, start, end } = req.query;
+
+        const employee = await User.findById(employeeId);
+
+        if (!employee) {
+            return res.status(404).json({
+                message: "Employee not found"
+            });
+        }
+
+        const data = await calculateSalary({
+            employee,
+            startDate: new Date(start),
+            endDate: new Date(end)
+        });
+
+        const html = salarySlipTemplate({
+            employee,
+            period: { start, end },
+            data
+        });
+
+        const pdfBuffer = await generatePDF(html);
+
+        res.set({
+            "Content-Type": "application/pdf",
+            "Content-Disposition": `attachment; filename=salary-slip.pdf`
+        });
+
+        res.send(pdfBuffer);
+
+    } catch (err) {
+        res.status(500).json({
+            message: err.message
         });
     }
 };

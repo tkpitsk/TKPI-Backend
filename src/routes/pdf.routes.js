@@ -8,6 +8,8 @@ import {
     downloadSalesInvoicePDF,
     downloadSalesQuotationPDF,
     downloadSalesOrderPDF,
+    downloadEmployeeReportPDF,
+    downloadSalarySlipPDF
 } from "../controllers/pdf.controller.js";
 
 const router = express.Router();
@@ -31,5 +33,13 @@ router.get("/sales/invoice/:id/pdf", downloadSalesInvoicePDF);
 
 /* 🔥 SALES ORDER PDF */
 router.get("/sales/order/:id/pdf", downloadSalesOrderPDF);
+
+/* 🔥 Employee Report PDF */
+router.get(
+    "/employee-report",
+    downloadEmployeeReportPDF
+);
+
+router.get("/salary-slip", downloadSalarySlipPDF);
 
 export default router;
