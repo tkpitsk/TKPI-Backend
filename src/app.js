@@ -37,7 +37,6 @@ const app = express();
 
 /* ================= SECURITY ================= */
 
-app.use(helmet());
 
 const allowedOrigins = [
     "http://localhost:3000",
@@ -56,6 +55,9 @@ app.use(cors({
     },
     credentials: true,
 }));
+
+app.options('*', cors());
+app.use(helmet());
 
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
