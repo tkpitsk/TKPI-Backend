@@ -39,15 +39,24 @@ const app = express();
 
 app.use(helmet());
 
+const allowedOrigins = [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "https://tkpi-management.vercel.app",
+    "https://the-karan-pole-industries.vercel.app"
+];
+
 app.use(cors({
-    origin: [
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "https://tkpi-management.vercel.app/",
-        "https://the-karan-pole-industries.vercel.app/"
-    ],
+    origin: function (origin, callback) {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error("Not allowed by CORS"));
+        }
+    },
     credentials: true,
 }));
+
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 500
