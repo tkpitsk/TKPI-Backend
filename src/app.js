@@ -43,7 +43,7 @@ app.use(cors({
     origin: [
         "http://localhost:3000",
         "http://localhost:3001",
-        "https://tkpi-management.vercel.app",
+        "https://tkpi-management.vercel.app/",
         "https://the-karan-pole-industries.vercel.app/"
     ],
     credentials: true,
