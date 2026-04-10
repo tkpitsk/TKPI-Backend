@@ -39,8 +39,15 @@ const app = express();
 
 app.use(helmet());
 
-app.use(cors());
-
+app.use(cors({
+    origin: [
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "https://tkpi-management.vercel.app",
+        "https://the-karan-pole-industries.vercel.app/"
+    ],
+    credentials: true,
+}));
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 500
