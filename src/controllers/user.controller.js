@@ -25,7 +25,6 @@ export const getAllUsers = async (req, res) => {
 export const createUser = async (req, res) => {
     try {
         const {
-            userId,
             password,
             role,
             salaryType,
@@ -34,10 +33,26 @@ export const createUser = async (req, res) => {
             phone
         } = req.body;
 
+        let { userId } = req.body;
+
+        /* ================= AUTO GENERATE USER ID ================= */
+        if (!userId && name) {
+            const baseId = name.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (baseId) {
+                let uniqueId = baseId;
+                let counter = 1;
+                while (await User.findOne({ userId: uniqueId })) {
+                    uniqueId = `${baseId}${counter}`;
+                    counter++;
+                }
+                userId = uniqueId;
+            }
+        }
+
         /* ================= BASIC VALIDATION ================= */
         if (!userId || !password || !role) {
             return res.status(400).json({
-                message: "userId, password, role are required"
+                message: "userId, password, role are required (or provide Full Name to auto-generate User ID)"
             });
         }
 
@@ -45,7 +60,7 @@ export const createUser = async (req, res) => {
 
         if (existingUser) {
             return res.status(409).json({
-                message: "User already exists"
+                message: "User ID already exists"
             });
         }
 
