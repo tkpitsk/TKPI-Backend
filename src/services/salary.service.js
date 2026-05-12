@@ -2,7 +2,7 @@ import Attendance from "../models/Attendance.js";
 import Advance from "../models/Advance.js";
 
 /* ================= HELPERS ================= */
-const round = (num) => Number(num.toFixed(2));
+const round = (num) => Math.round(num || 0);
 
 /* ================= CALCULATE SALARY ================= */
 export const calculateSalary = async ({

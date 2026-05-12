@@ -24,6 +24,11 @@ const attendanceSchema = new mongoose.Schema(
             ref: "User",
             required: true,
         },
+
+        reason: {
+            type: String,
+            trim: true,
+        },
     },
     { timestamps: true }
 );

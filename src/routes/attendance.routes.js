@@ -5,6 +5,7 @@ import {
     markAttendance,
     getAttendance,
     getMyAttendance,
+    bulkMarkAttendance,
 } from "../controllers/attendance.controller.js";
 
 const router = express.Router();
@@ -23,6 +24,12 @@ router.get(
     getAttendance
 );
 
-router.get("/me", getMyAttendance); // 👈 NEW
+router.post(
+    "/bulk",
+    requireRole("admin", "manager"),
+    bulkMarkAttendance
+);
+
+router.get("/me", getMyAttendance);
 
 export default router;

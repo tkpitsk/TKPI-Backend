@@ -17,7 +17,7 @@ const userSchema = new mongoose.Schema(
 
     role: {
       type: String,
-      enum: ["admin", "manager", "employee", "labour"],
+      enum: ["admin", "manager", "employee", "worker"],
       required: true
     },
 
@@ -50,6 +50,10 @@ const userSchema = new mongoose.Schema(
     isActive: {
       type: Boolean,
       default: true
+    },
+    image: {
+      type: String,
+      default: null
     }
 
   },
@@ -66,9 +70,9 @@ userSchema.pre("save", function (next) {
     }
   }
 
-  if (this.role === "labour") {
+  if (this.role === "worker") {
     if (!["daily", "weekly", "monthly"].includes(this.salaryType)) {
-      return next(new Error("Labour must have valid wage type"));
+      return next(new Error("Worker must have valid wage type"));
     }
   }
 });

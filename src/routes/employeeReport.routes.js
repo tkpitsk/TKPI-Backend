@@ -4,6 +4,7 @@ import requireRole from "../middleware/role.middleware.js";
 import {
   getEmployeeSummary,
   getEmployeeDetails,
+  getAllEmployeesSummary,
 } from "../controllers/employeeReport.controller.js";
 
 const router = express.Router();
@@ -20,6 +21,12 @@ router.get(
   "/details",
   requireRole("admin", "manager"),
   getEmployeeDetails
+);
+
+router.get(
+  "/all-summary",
+  requireRole("admin", "manager"),
+  getAllEmployeesSummary
 );
 
 export default router;

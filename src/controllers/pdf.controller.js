@@ -15,6 +15,7 @@ import Advance from "../models/Advance.js";
 import { employeeReportTemplate } from "../pdf/templates/employeeReport.template.js";
 import { calculateSalary } from "../services/salary.service.js";
 import { salarySlipTemplate } from "../pdf/templates/salarySlip.template.js";
+import { bulkEmployeeReportTemplate } from "../pdf/templates/bulkEmployeeReport.template.js";
 
 
 /* ================= ENQUIRY PDF ================= */
@@ -335,10 +336,17 @@ export const downloadEmployeeReportPDF = async (req, res) => {
             return res.status(404).json({ message: "Employee not found" });
         }
 
+        const startDate = new Date(start);
+        const endDate = new Date(end);
+
+        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+            return res.status(400).json({ message: "Invalid date range" });
+        }
+
         const attendance = await Attendance.find({
             employee: employeeId,
-            date: { $gte: new Date(start), $lte: new Date(end) }
-        });
+            date: { $gte: startDate, $lte: endDate }
+        }).lean();
 
         const advances = await Advance.find({
             employee: employeeId,
@@ -368,7 +376,7 @@ export const downloadEmployeeReportPDF = async (req, res) => {
             else halfDay++;
         });
 
-        const totalAdvance = advances.reduce((sum, a) => sum + a.amount, 0);
+        const totalAdvance = Math.round(advances.reduce((sum, a) => sum + a.amount, 0));
 
         const html = employeeReportTemplate({
             employee,
@@ -391,6 +399,83 @@ export const downloadEmployeeReportPDF = async (req, res) => {
     }
 };
 
+export const downloadBulkEmployeeReportPDF = async (req, res) => {
+    try {
+        const { start, end, type = "monthly" } = req.query;
+
+        const startDate = new Date(start);
+        const endDate = new Date(end);
+
+        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+            return res.status(400).json({ message: "Invalid date range" });
+        }
+
+        const employees = await User.find({
+            role: { $in: ["manager", "employee", "worker"] },
+            isActive: true
+        }).sort({ name: 1 }).lean();
+
+        const reports = [];
+
+        for (const employee of employees) {
+            const attendance = await Attendance.find({
+                employee: employee._id,
+                date: { $gte: startDate, $lte: endDate }
+            }).sort({ date: 1 }).lean();
+
+            const advances = await Advance.find({
+                employee: employee._id,
+                date: { $gte: startDate, $lte: endDate }
+            }).lean();
+
+            const advanceMap = new Map();
+            advances.forEach((a) => {
+                const key = new Date(a.date).toISOString().split("T")[0];
+                advanceMap.set(key, (advanceMap.get(key) || 0) + Number(a.amount || 0));
+            });
+
+            const records = attendance.map((item) => {
+                const key = new Date(item.date).toISOString().split("T")[0];
+                return {
+                    date: item.date,
+                    status: item.status,
+                    advance: advanceMap.get(key) || 0,
+                };
+            });
+
+            let present = 0, absent = 0, halfDay = 0;
+            attendance.forEach((a) => {
+                if (a.status === "present") present++;
+                else if (a.status === "absent") absent++;
+                else if (a.status === "half-day") halfDay++;
+            });
+
+            const totalAdvance = Math.round(advances.reduce((sum, a) => sum + a.amount, 0));
+
+            reports.push({
+                employee,
+                records,
+                summary: { present, absent, halfDay, totalAdvance },
+                title: `${type.toUpperCase()} REPORT`,
+                period: {
+                    start: startDate.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
+                    end: endDate.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+                }
+            });
+        }
+
+        const html = bulkEmployeeReportTemplate({ reports });
+        const pdf = await generatePDF(html);
+
+        res.contentType("application/pdf");
+        res.send(pdf);
+
+    } catch (err) {
+        console.error("Bulk PDF error:", err);
+        res.status(500).json({ message: err.message || "Failed to generate bulk report" });
+    }
+};
+
 
 export const downloadSalarySlipPDF = async (req, res) => {
     try {
@@ -404,10 +489,17 @@ export const downloadSalarySlipPDF = async (req, res) => {
             });
         }
 
+        const startDate = new Date(start);
+        const endDate = new Date(end);
+
+        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+            return res.status(400).json({ message: "Invalid date range" });
+        }
+
         const data = await calculateSalary({
             employee,
-            startDate: new Date(start),
-            endDate: new Date(end)
+            startDate,
+            endDate
         });
 
         const html = salarySlipTemplate({

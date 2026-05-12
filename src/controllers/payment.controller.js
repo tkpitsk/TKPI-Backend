@@ -17,7 +17,8 @@ export const createPayment = async (req, res) => {
             return res.status(400).json({ errors });
         }
 
-        const { type, entityId, amount, method, note, referenceId } = req.body;
+        const { type, entityId, amount: rawAmount, method, note, referenceId } = req.body;
+        const amount = Math.round(Number(rawAmount || 0));
 
         /* ================= OPTIONAL: VALIDATE INVOICE ================= */
         let invoice = null;

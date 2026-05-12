@@ -1,6 +1,8 @@
 import mongoose from "mongoose";
 import Attendance from "../models/Attendance.js";
 import Advance from "../models/Advance.js";
+import User from "../models/User.js";
+import { calculateSalary } from "../services/salary.service.js";
 
 /* ================= HELPERS ================= */
 const getDateKey = (d) =>
@@ -119,5 +121,77 @@ export const getEmployeeDetails = async (req, res) => {
         res.status(500).json({
             message: err.message || "Failed to fetch details",
         });
+    }
+};
+
+/* ================= ALL EMPLOYEES SUMMARY ================= */
+export const getAllEmployeesSummary = async (req, res) => {
+    try {
+        const { start, end } = req.query;
+
+        const startDate = new Date(start);
+        const endDate = new Date(end);
+
+        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+            return res.status(400).json({ message: "Invalid date range" });
+        }
+
+        // Fetch all employees
+        const employees = await User.find({
+            role: { $in: ["manager", "employee", "worker"] },
+            isActive: true
+        }).sort({ name: 1 }).lean();
+
+        const reportData = [];
+
+        for (const employee of employees) {
+            // Use the centralized salary service
+            const data = await calculateSalary({
+                employee,
+                startDate,
+                endDate
+            });
+
+            // Get attendance counts
+            const attendance = await Attendance.find({
+                employee: employee._id,
+                date: { $gte: startDate, $lte: endDate }
+            }).lean();
+
+            let present = 0, absent = 0, halfDay = 0;
+            attendance.forEach(a => {
+                if (a.status === "present") present++;
+                else if (a.status === "absent") absent++;
+                else if (a.status === "half-day") halfDay++;
+            });
+
+            reportData.push({
+                employee: {
+                    _id: employee._id,
+                    name: employee.name || employee.userId,
+                    userId: employee.userId,
+                    role: employee.role,
+                    joiningDate: employee.createdAt
+                },
+                summary: {
+                    present,
+                    absent,
+                    halfDay,
+                    payableDays: data.payableDays,
+                    totalAdvance: Math.round(data.totalAdvance),
+                    earned: Math.round(data.earned),
+                    netSalary: Math.round(data.netSalary)
+                }
+            });
+        }
+
+        res.json({
+            success: true,
+            data: reportData
+        });
+
+    } catch (err) {
+        console.error("Global report error:", err);
+        res.status(500).json({ message: err.message || "Failed to fetch global report" });
     }
 };

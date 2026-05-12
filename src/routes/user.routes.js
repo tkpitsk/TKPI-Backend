@@ -2,6 +2,7 @@ import express from "express";
 
 import authMiddleware from "../middleware/auth.middleware.js";
 import requireRole from "../middleware/role.middleware.js";
+import upload from "../middleware/upload.middleware.js";
 
 import auditMiddleware from "../audit/audit.middleware.js";
 import { AUDIT_ACTIONS } from "../audit/audit.constants.js";
@@ -11,7 +12,9 @@ import {
     createUser,
     updateUser,
     updateUserPassword,
-    deleteUser
+    deleteUser,
+    getUserReferences,
+    hardDeleteUser
 } from "../controllers/user.controller.js";
 
 const router = express.Router();
@@ -28,6 +31,7 @@ router.get("/", getAllUsers);
 /* ================= CREATE USER ================= */
 router.post(
     "/",
+    upload.single("image"),
     auditMiddleware({
         action: AUDIT_ACTIONS.CREATE,
         entity: "USER"
@@ -38,6 +42,7 @@ router.post(
 /* ================= UPDATE USER ================= */
 router.put(
     "/:id",
+    upload.single("image"),
     auditMiddleware({
         action: AUDIT_ACTIONS.UPDATE,
         entity: "USER"
@@ -64,5 +69,18 @@ router.delete(
     }),
     deleteUser
 );
+
+/* ================= PERMANENT DELETE ================= */
+router.delete(
+    "/:id/permanent",
+    auditMiddleware({
+        action: AUDIT_ACTIONS.DELETE,
+        entity: "USER"
+    }),
+    hardDeleteUser
+);
+
+/* ================= USER REFERENCES ================= */
+router.get("/:id/references", getUserReferences);
 
 export default router;

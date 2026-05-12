@@ -1,9 +1,17 @@
 import bcrypt from "bcryptjs";
 import User from "../models/User.js";
+import Advance from "../models/Advance.js";
+import Attendance from "../models/Attendance.js";
+import Reminder from "../models/Reminder.js";
+import Payment from "../models/Payment.js";
+import StockMovement from "../models/StockMovement.js";
+import Ledger from "../models/Ledger.js";
+import PurchaseEnquiry from "../models/PurchaseEnquiry.js";
 
 import { logAudit } from "../audit/audit.service.js";
 import { AUDIT_ACTIONS } from "../audit/audit.constants.js";
 import { getChanges } from "../utils/diff.utils.js";
+import { uploadToCloudinary } from "../utils/upload.utils.js";
 
 /* ================= GET ALL USERS ================= */
 export const getAllUsers = async (req, res) => {
@@ -74,16 +82,16 @@ export const createUser = async (req, res) => {
             }
         }
 
-        if (role === "labour") {
+        if (role === "worker") {
             if (!salaryType || !salaryAmount) {
                 return res.status(400).json({
-                    message: "Labour must have salaryType and salaryAmount"
+                    message: "Worker must have salaryType and salaryAmount"
                 });
             }
 
             if (!["daily", "weekly", "monthly"].includes(salaryType)) {
                 return res.status(400).json({
-                    message: "Invalid salary type for labour"
+                    message: "Invalid salary type for worker"
                 });
             }
         }
@@ -91,15 +99,22 @@ export const createUser = async (req, res) => {
         /* ================= HASH PASSWORD ================= */
         const hashedPassword = await bcrypt.hash(password, 10);
 
+        /* ================= IMAGE UPLOAD ================= */
+        let imageUrl = null;
+        if (req.file) {
+            imageUrl = await uploadToCloudinary(req.file);
+        }
+
         /* ================= CREATE USER ================= */
         const user = await User.create({
             userId,
             password: hashedPassword,
             role,
-            salaryType: role === "labour" ? salaryType : "monthly",
+            salaryType: role === "worker" ? salaryType : "monthly",
             salaryAmount: salaryAmount || 0,
             name,
-            phone
+            phone,
+            image: imageUrl
         });
 
         res.status(201).json({
@@ -112,7 +127,8 @@ export const createUser = async (req, res) => {
                 salaryAmount: user.salaryAmount,
                 name: user.name,
                 phone: user.phone,
-                isActive: user.isActive
+                isActive: user.isActive,
+                image: user.image
             }
         });
 
@@ -164,7 +180,7 @@ export const updateUser = async (req, res) => {
 
         /* ================= SALARY LOGIC ================= */
 
-        if (user.role === "labour") {
+        if (user.role === "worker") {
             if (salaryType) user.salaryType = salaryType;
         } else {
             user.salaryType = "monthly"; // force
@@ -172,6 +188,11 @@ export const updateUser = async (req, res) => {
 
         if (salaryAmount !== undefined) {
             user.salaryAmount = salaryAmount;
+        }
+
+        /* ================= IMAGE UPLOAD ================= */
+        if (req.file) {
+            user.image = await uploadToCloudinary(req.file);
         }
 
         await user.save();
@@ -282,6 +303,98 @@ export const deleteUser = async (req, res) => {
     } catch (error) {
         res.status(500).json({
             message: "Failed to delete user"
+        });
+    }
+};
+
+
+/* ================= GET USER REFERENCES ================= */
+export const getUserReferences = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const [
+            advancesAsEmployee,
+            advancesAsGiver,
+            attendanceAsEmployee,
+            attendanceAsMarker,
+            reminders,
+            payments,
+            stockMovements,
+            ledgers,
+            purchaseEnquiries
+        ] = await Promise.all([
+            Advance.countDocuments({ employee: id }),
+            Advance.countDocuments({ givenBy: id }),
+            Attendance.countDocuments({ employee: id }),
+            Attendance.countDocuments({ markedBy: id }),
+            Reminder.countDocuments({ createdBy: id }),
+            Payment.countDocuments({ createdBy: id }),
+            StockMovement.countDocuments({ createdBy: id }),
+            Ledger.countDocuments({ createdBy: id }),
+            PurchaseEnquiry.countDocuments({ createdBy: id })
+        ]);
+
+        const references = [
+            { label: "Advances (Taken)", count: advancesAsEmployee },
+            { label: "Advances (Given)", count: advancesAsGiver },
+            { label: "Attendance Records", count: attendanceAsEmployee },
+            { label: "Attendance Marked", count: attendanceAsMarker },
+            { label: "Reminders Created", count: reminders },
+            { label: "Payments Created", count: payments },
+            { label: "Stock Movements", count: stockMovements },
+            { label: "Ledger Entries", count: ledgers },
+            { label: "Purchase Enquiries", count: purchaseEnquiries }
+        ].filter(r => r.count > 0);
+
+        res.json({
+            hasReferences: references.length > 0,
+            references
+        });
+    } catch (error) {
+        res.status(500).json({
+            message: "Failed to fetch user references"
+        });
+    }
+};
+
+
+/* ================= PERMANENTLY DELETE USER ================= */
+export const hardDeleteUser = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        if (req.user._id.toString() === id) {
+            return res.status(400).json({
+                message: "You cannot delete yourself"
+            });
+        }
+
+        const user = await User.findById(id);
+
+        if (!user) {
+            return res.status(404).json({
+                message: "User not found"
+            });
+        }
+
+        await User.findByIdAndDelete(id);
+
+        res.json({
+            message: "User deleted permanently"
+        });
+
+        await logAudit({
+            actor: req.user._id,
+            action: AUDIT_ACTIONS.DELETE,
+            entity: "USER",
+            entityId: id,
+            req
+        });
+
+    } catch (error) {
+        res.status(500).json({
+            message: "Failed to delete user permanently"
         });
     }
 };

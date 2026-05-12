@@ -9,6 +9,7 @@ import {
     downloadSalesQuotationPDF,
     downloadSalesOrderPDF,
     downloadEmployeeReportPDF,
+    downloadBulkEmployeeReportPDF,
     downloadSalarySlipPDF
 } from "../controllers/pdf.controller.js";
 
@@ -35,11 +36,8 @@ router.get("/sales/invoice/:id/pdf", downloadSalesInvoicePDF);
 router.get("/sales/order/:id/pdf", downloadSalesOrderPDF);
 
 /* 🔥 Employee Report PDF */
-router.get(
-    "/employee-report",
-    downloadEmployeeReportPDF
-);
-
+router.get("/employee-report", downloadEmployeeReportPDF);
+router.get("/bulk-employee-report", downloadBulkEmployeeReportPDF);
 router.get("/salary-slip", downloadSalarySlipPDF);
 
 export default router;
