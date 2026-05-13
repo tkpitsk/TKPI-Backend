@@ -16,28 +16,19 @@ import {
 const router = express.Router();
 
 router.use(authMiddleware);
-router.use(requireRole("admin"));
 
 /* ================= PDF ROUTES ================= */
 
-/* 🔥 ENQUIRY PDF */
-router.get("/purchase/enquiry/:id/pdf", downloadPurchaseEnquiryPDF);
+/* 🔥 ADMIN ONLY PDFs */
+router.get("/purchase/enquiry/:id/pdf", requireRole("admin"), downloadPurchaseEnquiryPDF);
+router.get("/purchase/order/:id/pdf", requireRole("admin"), downloadPurchaseOrderPDF);
+router.get("/sales/quotation/:id/pdf", requireRole("admin"), downloadSalesQuotationPDF);
+router.get("/sales/invoice/:id/pdf", requireRole("admin"), downloadSalesInvoicePDF);
+router.get("/sales/order/:id/pdf", requireRole("admin"), downloadSalesOrderPDF);
 
-/* 🔥 ORDER PDF */
-router.get("/purchase/order/:id/pdf", downloadPurchaseOrderPDF);
-
-/* 🔥 SALES QUOTATION PDF */
-router.get("/sales/quotation/:id/pdf", downloadSalesQuotationPDF);
-
-/* 🔥 SALES INVOICE PDF */
-router.get("/sales/invoice/:id/pdf", downloadSalesInvoicePDF);
-
-/* 🔥 SALES ORDER PDF */
-router.get("/sales/order/:id/pdf", downloadSalesOrderPDF);
-
-/* 🔥 Employee Report PDF */
-router.get("/employee-report", downloadEmployeeReportPDF);
-router.get("/bulk-employee-report", downloadBulkEmployeeReportPDF);
-router.get("/salary-slip", downloadSalarySlipPDF);
+/* 🔥 Employee & Manager PDFs */
+router.get("/employee-report", requireRole("admin", "manager"), downloadEmployeeReportPDF);
+router.get("/bulk-employee-report", requireRole("admin", "manager"), downloadBulkEmployeeReportPDF);
+router.get("/salary-slip", requireRole("admin", "manager"), downloadSalarySlipPDF);
 
 export default router;

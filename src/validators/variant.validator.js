@@ -1,43 +1,26 @@
 export const validateVariant = (data) => {
-
     const errors = {};
+
+    /* ================= VARIANT NAME ================= */
+    if (!data.variantName || typeof data.variantName !== "string" || data.variantName.trim() === "") {
+        errors.variantName = "Variant name is required";
+    }
 
     /* ================= UNIT ================= */
     const allowedUnits = ["kg", "ton", "meter", "piece"];
-
     if (!data.unit) {
         errors.unit = "Unit is required";
-    } else if (!allowedUnits.includes(data.unit)) {
+    } else if (!allowedUnits.includes(data.unit.toLowerCase())) {
         errors.unit = "Invalid unit";
     }
 
-    /* ================= SIZE ================= */
-    if (data.size && typeof data.size !== "string") {
-        errors.size = "Invalid size";
-    }
-
-    /* ================= GRADE ================= */
-    if (data.grade && typeof data.grade !== "string") {
-        errors.grade = "Invalid grade";
-    }
-
-    /* ================= THICKNESS ================= */
-    if (data.thickness && typeof data.thickness !== "string") {
-        errors.thickness = "Invalid thickness";
-    }
-
-    /* ================= WEIGHT ================= */
-    if (data.weightPerUnit !== undefined) {
-
-        const weight = Number(data.weightPerUnit);
-
-        if (isNaN(weight)) {
-            errors.weightPerUnit = "Weight must be a number";
-        }
-
-        if (weight < 0) {
-            errors.weightPerUnit = "Weight cannot be negative";
-        }
+    /* ================= PRICING FACTORS ================= */
+    if (data.pricingFactors) {
+        const { difference, transport, loading, unloading } = data.pricingFactors;
+        if (difference !== undefined && isNaN(Number(difference))) errors.difference = "Difference must be a number";
+        if (transport !== undefined && isNaN(Number(transport))) errors.transport = "Transport must be a number";
+        if (loading !== undefined && isNaN(Number(loading))) errors.loading = "Loading must be a number";
+        if (unloading !== undefined && isNaN(Number(unloading))) errors.unloading = "Unloading must be a number";
     }
 
     return {

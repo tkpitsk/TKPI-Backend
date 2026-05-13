@@ -10,78 +10,77 @@ const imageSchema = new mongoose.Schema(
 );
 
 const productSchema = new mongoose.Schema({
-
-    name: {
-        type: String,
-        required: true,
-        trim: true,
-        lowercase: true,
-        index: true
-    },
-
-    hsnCode: {
-        type: String,
-        trim: true,
-        validate: {
-            validator: function (val) {
-                return !val || /^[0-9]{4,8}$/.test(val);
-            },
-            message: "HSN must be 4 to 8 digits"
-        }
-    },
-
-    slug: {
-        type: String,
-        unique: true,
-        index: true
-    },
-
-    category: {
+    categoryId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Category",
         required: true,
         index: true
     },
-
-    productType: {
+    name: {
         type: String,
-        enum: ["trading", "manufacturing", "service"],
         required: true,
+        trim: true,
         index: true
     },
-
-    /* WEBSITE CONTENT */
-    description: String,
-    features: {
-        type: [String],
-        default: []
+    slug: {
+        type: String,
+        unique: true,
+        index: true
     },
-    applications: {
-        type: [String],
-        default: []
+    shortDescription: String,
+    longDescription: String,
+    overview: String,
+    applications: [String],
+    industriesUsed: [String],
+    advantages: [String],
+    features: [String],
+    manufacturingProcess: String,
+    standards: [String],
+    certifications: [String],
+    availableBrands: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Brand"
+    }],
+    galleryImages: [imageSchema],
+    brochures: [imageSchema],
+    videos: [{
+        title: String,
+        url: String
+    }],
+    faqs: [{
+        question: String,
+        answer: String
+    }],
+    technicalDocuments: [imageSchema],
+    downloadableFiles: [imageSchema],
+    relatedProducts: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Product"
+    }],
+    seo: {
+        title: String,
+        description: String,
+        keywords: [String]
     },
-
-    images: {
-        type: [imageSchema],
-        default: [],
-        validate: {
-            validator: (val) => !val || val.length <= 5,
-            message: "Maximum 5 images allowed"
-        }
+    hsnCode: {
+        type: String,
+        required: true,
+        trim: true
     },
-
-    /* SERVICE ONLY */
-    serviceRate: {
-        type: Number,
-        min: 0
-    },
-
-    isActive: {
+    inquiryEnabled: {
         type: Boolean,
-        default: true,
+        default: true
+    },
+    status: {
+        type: String,
+        enum: ["active", "inactive"],
+        default: "active",
         index: true
+    },
+    createdBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User"
     }
-
 }, { timestamps: true });
 
 /* AUTO SLUG */
@@ -102,17 +101,6 @@ productSchema.pre("save", async function () {
         }
 
         this.slug = slug;
-    }
-
-    /* ALWAYS VALIDATE */
-    if (this.productType !== "service" && !this.hsnCode) {
-        throw new Error("HSN code is required for goods");
-    }
-
-    if (this.productType === "service") {
-        if (!this.serviceRate || this.serviceRate <= 0) {
-            throw new Error("Service must have serviceRate");
-        }
     }
 });
 

@@ -22,15 +22,15 @@ const router = express.Router();
 /* ================= PROTECTED ROUTES ================= */
 router.use(authMiddleware);
 
-/* ================= ADMIN ONLY ================= */
-router.use(requireRole("admin"));
-
 /* ================= GET USERS ================= */
-router.get("/", getAllUsers);
+router.get("/", requireRole("admin", "manager"), getAllUsers);
+
+
 
 /* ================= CREATE USER ================= */
 router.post(
     "/",
+    requireRole("admin", "manager"),
     upload.single("image"),
     auditMiddleware({
         action: AUDIT_ACTIONS.CREATE,
@@ -42,6 +42,7 @@ router.post(
 /* ================= UPDATE USER ================= */
 router.put(
     "/:id",
+    requireRole("admin", "manager"),
     upload.single("image"),
     auditMiddleware({
         action: AUDIT_ACTIONS.UPDATE,
@@ -53,6 +54,7 @@ router.put(
 /* ================= RESET PASSWORD ================= */
 router.put(
     "/:id/password",
+    requireRole("admin", "manager"),
     auditMiddleware({
         action: AUDIT_ACTIONS.PASSWORD_RESET,
         entity: "USER"
@@ -63,6 +65,7 @@ router.put(
 /* ================= DELETE USER ================= */
 router.delete(
     "/:id",
+    requireRole("admin", "manager"),
     auditMiddleware({
         action: AUDIT_ACTIONS.DELETE,
         entity: "USER"
@@ -70,17 +73,17 @@ router.delete(
     deleteUser
 );
 
-/* ================= PERMANENT DELETE ================= */
-router.delete(
-    "/:id/permanent",
-    auditMiddleware({
-        action: AUDIT_ACTIONS.DELETE,
-        entity: "USER"
-    }),
-    hardDeleteUser
-);
+/* ================= PERMANENT DELETE (DISABLED) ================= */
+// router.delete(
+//     "/:id/permanent",
+//     auditMiddleware({
+//         action: AUDIT_ACTIONS.DELETE,
+//         entity: "USER"
+//     }),
+//     hardDeleteUser
+// );
 
 /* ================= USER REFERENCES ================= */
-router.get("/:id/references", getUserReferences);
+router.get("/:id/references", requireRole("admin", "manager"), getUserReferences);
 
 export default router;

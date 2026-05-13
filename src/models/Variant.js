@@ -1,84 +1,121 @@
 import mongoose from "mongoose";
 
-const variantSchema = new mongoose.Schema({
+const imageSchema = new mongoose.Schema({
+    url: String,
+    publicId: String
+}, { _id: false });
 
-    product: {
+const variantSchema = new mongoose.Schema({
+    productId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Product",
         required: true,
         index: true
     },
-
-    /* SKU ATTRIBUTES */
-    size: {
+    sku: {
         type: String,
-        trim: true
+        unique: true,
+        index: true
     },
-
-    grade: {
+    variantName: {
         type: String,
-        trim: true
+        required: true
     },
-
-    thickness: {
-        type: String,
-        trim: true
-    },
-
+    skuPrefix: String, // Helper field for SKU generation
+    skuNumber: Number, // Helper field for SKU generation
+    
+    /* Technical Industrial Specifications */
+    grade: String,           // e.g. Fe 500, Fe 550D, E250
+    materialType: String,    // e.g. MS, GI, High Tensile
+    finishType: String,      // e.g. Polished, Black, Galvanized
+    sectionalWeight: Number, // Kg/m - Standard industrial reference
     unit: {
         type: String,
         enum: ["kg", "ton", "meter", "piece"],
         required: true
     },
-
-    weightPerUnit: {
-        type: Number,
-        min: 0
+    
+    dimensions: {
+        diameter: Number,      // mm
+        thickness: Number,     // mm
+        width: Number,         // mm
+        height: Number,        // mm
+        length: Number,        // meter
+        outerDiameter: Number, // mm (for pipes)
+        wallThickness: Number  // mm (for pipes)
     },
-
-    /* ERP */
-    trackStock: {
-        type: Boolean,
-        default: true
+    
+    tolerance: {
+        positive: String,
+        negative: String
     },
-
-    isActive: {
-        type: Boolean,
-        default: true,
+    
+    mechanicalProperties: {
+        yieldStrength: String,
+        tensileStrength: String,
+        elongation: String,
+        bendTest: String
+    },
+    
+    chemicalComposition: {
+        carbon: String,
+        sulfur: String,
+        phosphorus: String,
+        manganese: String
+    },
+    
+    pricingFactors: {
+        difference: { type: Number, default: 0 },
+        transport: { type: Number, default: 0 },
+        loading: { type: Number, default: 0 },
+        unloading: { type: Number, default: 0 },
+        gstPercentage: { type: Number, default: 18 }
+    },
+    
+    images: [imageSchema],
+    millTestCertificates: [imageSchema],
+    status: {
+        type: String,
+        enum: ["active", "inactive"],
+        default: "active",
         index: true
     }
-
 }, { timestamps: true });
 
-/* UNIQUE SKU */
-variantSchema.index(
-    { product: 1, size: 1, grade: 1, thickness: 1 },
-    { unique: true }
-);
+/* SKU GENERATION LOGIC */
+variantSchema.pre("save", async function (next) {
+    if (this.isNew || !this.sku) {
+        try {
+            const Product = mongoose.model("Product");
+            const Category = mongoose.model("Category");
+            const Variant = mongoose.model("Variant");
 
-/* VALIDATION */
-variantSchema.pre("save", async function () {
+            // 1. Get Product and Category
+            const product = await Product.findById(this.productId);
+            if (!product) throw new Error("Product not found");
 
-    const Product = mongoose.model("Product");
-    const product = await Product.findById(this.product);
+            const category = await Category.findById(product.categoryId);
+            if (!category) throw new Error("Category not found");
 
-    if (!product) {
-        throw new Error("Invalid product");
-    }
+            const catShortCode = category.shortCode || "GEN";
+            const prefix = `TKPI_${catShortCode}`;
 
-    /* ❌ SERVICE SHOULD NOT HAVE VARIANTS */
-    if (product.productType === "service") {
-        throw new Error("Service products cannot have variants");
-    }
+            // 2. Find the last number for this prefix
+            const lastVariant = await Variant.findOne({ sku: new RegExp(`^${prefix}_`) })
+                .sort({ skuNumber: -1 })
+                .select("skuNumber");
 
-    /* UNIT NORMALIZATION (IMPORTANT) */
-    if (this.isModified("unit") && this.unit === "ton") {
-        if (this.weightPerUnit) {
-            this.weightPerUnit = this.weightPerUnit * 1000;
+            const nextNumber = (lastVariant?.skuNumber || 0) + 1;
+            const paddedNumber = String(nextNumber).padStart(3, "0");
+
+            this.skuPrefix = prefix;
+            this.skuNumber = nextNumber;
+            this.sku = `${prefix}_${paddedNumber}`;
+        } catch (error) {
+            return next(error);
         }
-        this.unit = "kg";
     }
-
+    next();
 });
 
 export default mongoose.model("Variant", variantSchema);

@@ -59,15 +59,12 @@ export const createProduct = async (req, res) => {
             });
         }
 
-        const parsedData = {
-            ...req.body,
-            features,
-            applications
-        };
-
         const product = await Product.create({
-            ...parsedData,
-            images
+            ...req.body,
+            categoryId: req.body.categoryId || req.body.category,
+            hsnCode: req.body.hsnCode,
+            createdBy: req.user?._id,
+            galleryImages: images
         });
 
         res.status(201).json(product);
@@ -108,12 +105,6 @@ export const createVariants = async (req, res) => {
             });
         }
 
-        if (product.productType === "service") {
-            return res.status(400).json({
-                message: "Service cannot have variants"
-            });
-        }
-
         const createdVariants = [];
 
         const session = await mongoose.startSession();
@@ -128,13 +119,13 @@ export const createVariants = async (req, res) => {
 
                 const [variant] = await Variant.create([{
                     ...item,
-                    product: productId
+                    productId: productId
                 }], { session });
 
                 /* ✅ FIXED: ADD PRODUCT */
                 await Stock.create([{
-                    product: productId,
-                    variant: variant._id,
+                    productId: productId,
+                    variantId: variant._id,
                     quantity: 0
                 }], { session });
 
@@ -177,7 +168,7 @@ export const getProductsAdmin = async (req, res) => {
     try {
 
         const products = await Product.find()
-            .populate("category", "name")
+            .populate("categoryId", "name")
             .sort({ createdAt: -1 });
 
         res.json(products);
@@ -208,8 +199,8 @@ export const getProducts = async (req, res) => {
         }
 
         const products = await Product.find(filter)
-            .select("name slug images")
-            .populate("category", "name slug");
+            .select("name slug galleryImages")
+            .populate("categoryId", "name slug");
 
         res.json(products);
 
@@ -230,8 +221,8 @@ export const getProductBySlug = async (req, res) => {
 
         const product = await Product.findOne({
             slug: req.params.slug,
-            isActive: true
-        }).populate("category", "name slug");
+            status: "active"
+        }).populate("categoryId", "name slug");
 
         if (!product) {
             return res.status(404).json({
@@ -241,20 +232,20 @@ export const getProductBySlug = async (req, res) => {
 
         /* GET VARIANTS */
         const variants = await Variant.find({
-            product: product._id,
-            isActive: true
+            productId: product._id,
+            status: "active"
         });
 
         const variantIds = variants.map(v => v._id);
 
         const stocks = await Stock.find({
-            variant: { $in: variantIds }
+            variantId: { $in: variantIds }
         });
 
         const stockMap = {};
 
         stocks.forEach(s => {
-            stockMap[s.variant.toString()] = s;
+            stockMap[s.variantId.toString()] = s;
         });
 
         const variantsWithStock = variants.map(v => {
@@ -302,31 +293,29 @@ export const updateProduct = async (req, res) => {
 
         const allowedFields = [
             "name",
-            "description",
-            "features",
+            "shortDescription",
+            "longDescription",
+            "overview",
             "applications",
-            "category",
-            "productType",
-            "serviceRate",
+            "industriesUsed",
+            "advantages",
+            "features",
+            "manufacturingProcess",
+            "standards",
+            "certifications",
+            "categoryId",
             "hsnCode",
-            "isActive"
+            "inquiryEnabled",
+            "status"
         ];
 
         allowedFields.forEach(field => {
             if (req.body[field] !== undefined) {
-
-                // ✅ HANDLE JSON FIELDS FROM FORM DATA
-                if (field === "features" || field === "applications") {
-                    try {
-                        product[field] =
-                            typeof req.body[field] === "string"
-                                ? JSON.parse(req.body[field])
-                                : req.body[field];
-                    } catch {
-                        return res.status(400).json({
-                            message: `${field} must be valid JSON`
-                        });
-                    }
+                // Map category to categoryId
+                if (field === "category") {
+                    product.categoryId = req.body[field];
+                } else if (field === "isActive") {
+                    product.status = req.body[field] ? "active" : "inactive";
                 } else {
                     product[field] = req.body[field];
                 }
@@ -418,13 +407,17 @@ export const updateVariant = async (req, res) => {
         }
 
         const allowedFields = [
-            "size",
+            "variantName",
             "grade",
-            "thickness",
+            "materialType",
+            "finishType",
+            "sectionalWeight",
             "unit",
-            "weightPerUnit",
-            "trackStock",
-            "isActive"
+            "dimensions",
+            "tolerance",
+            "mechanicalProperties",
+            "chemicalComposition",
+            "status"
         ];
 
         allowedFields.forEach(field => {
@@ -432,6 +425,13 @@ export const updateVariant = async (req, res) => {
                 variant[field] = req.body[field];
             }
         });
+
+        if (req.body.pricingFactors) {
+            variant.pricingFactors = {
+                ...variant.pricingFactors,
+                ...req.body.pricingFactors
+            };
+        }
 
         const product = await Product.findById(variant.product);
 
@@ -462,8 +462,8 @@ export const getVariantsByProduct = async (req, res) => {
         }
 
         const variants = await Variant.find({
-            product: productId,
-            isActive: true
+            productId: productId,
+            status: "active"
         });
 
         res.json(variants);
@@ -486,12 +486,12 @@ export const deactivateProduct = async (req, res) => {
             });
         }
 
-        product.isActive = false;
+        product.status = "inactive";
         await product.save();
 
         await Variant.updateMany(
-            { product: product._id },
-            { isActive: false }
+            { productId: product._id },
+            { status: "inactive" }
         );
 
         res.json({ message: "Product deactivated" });

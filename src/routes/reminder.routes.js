@@ -11,7 +11,7 @@ import {
 const router = express.Router();
 
 router.use(authMiddleware);
-router.use(requireRole("admin"));
+router.use(requireRole("admin", "manager"));
 
 router.get("/", getReminders);
 router.post("/", createReminder);

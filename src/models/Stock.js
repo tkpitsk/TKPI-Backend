@@ -3,14 +3,14 @@ import mongoose from "mongoose";
 const stockSchema = new mongoose.Schema({
 
     /* 🔥 IMPORTANT: ADD PRODUCT */
-    product: {
+    productId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Product",
         required: true,
         index: true
     },
 
-    variant: {
+    variantId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Variant",
         required: true,
