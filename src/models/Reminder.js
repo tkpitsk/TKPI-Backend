@@ -32,6 +32,27 @@ const reminderSchema = new mongoose.Schema(
             ref: "User",
             required: true,
         },
+
+        repeat: {
+            type: String,
+            enum: ["none", "hourly", "daily", "3days", "weekly", "15days", "monthly", "6monthly", "yearly", "custom"],
+            default: "none",
+        },
+
+        customDays: {
+            type: Number,
+        },
+
+        priority: {
+            type: String,
+            enum: ["low", "medium", "high"],
+            default: "medium",
+        },
+
+        assignedTo: {
+            type: String,
+            trim: true,
+        },
     },
     { timestamps: true }
 );
