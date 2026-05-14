@@ -5,7 +5,7 @@ import Reminder from "../models/Reminder.js";
 
 const normalizeDate = (d) => {
   const date = new Date(d);
-  date.setHours(0, 0, 0, 0);
+  date.setUTCHours(0, 0, 0, 0);
   return date;
 };
 
@@ -23,25 +23,19 @@ export const getDailyOverview = async (req, res) => {
 
     // 1. Fetch Attendance
     let attendance = await Attendance.find({
-      date: targetDate,
+      date: { $gte: targetDate, $lte: endDate },
     })
       .populate("employee", "name userId image role")
       .populate("markedBy", "name")
       .lean();
 
-    // Filter out admins from attendance (REMOVED - Show all)
-    // attendance = attendance.filter(a => a.employee?.role !== "admin");
-
     // 2. Fetch Advances
     let advances = await Advance.find({
-      date: targetDate,
+      date: { $gte: targetDate, $lte: endDate },
     })
       .populate("employee", "name userId image role")
       .populate("givenBy", "name")
       .lean();
-
-    // Filter out admins from advances (REMOVED - Show all)
-    // advances = advances.filter(a => a.employee?.role !== "admin");
 
     // 3. Fetch Reminders
     const reminders = await Reminder.find({

@@ -45,18 +45,26 @@ export const getReminders = async (req, res) => {
 
 /* ================= UPDATE ================= */
 export const updateReminder = async (req, res) => {
-    const reminder = await Reminder.findById(req.params.id);
-    if (!reminder)
-        return res.status(404).json({ message: "Not found" });
+    try {
+        const reminder = await Reminder.findById(req.params.id);
+        if (!reminder)
+            return res.status(404).json({ message: "Not found" });
 
-    Object.assign(reminder, req.body);
-    await reminder.save();
+        Object.assign(reminder, req.body);
+        await reminder.save();
 
-    res.json(reminder);
+        res.json(reminder);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
 };
 
 /* ================= DELETE ================= */
 export const deleteReminder = async (req, res) => {
-    await Reminder.findByIdAndDelete(req.params.id);
-    res.json({ success: true });
+    try {
+        await Reminder.findByIdAndDelete(req.params.id);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
 };

@@ -20,7 +20,7 @@ export const giveAdvance = async (req, res) => {
         }
 
         const normalizedDate = new Date(date);
-        normalizedDate.setHours(0, 0, 0, 0);
+        normalizedDate.setUTCHours(0, 0, 0, 0);
 
         /* ================= CREATE ================= */
         const advance = await Advance.findOneAndUpdate(

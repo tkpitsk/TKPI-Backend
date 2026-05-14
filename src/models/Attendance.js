@@ -42,7 +42,7 @@ attendanceSchema.index(
 /* 🔥 NORMALIZE DATE (IMPORTANT) */
 attendanceSchema.pre("save", function (next) {
     if (this.date) {
-        this.date.setHours(0, 0, 0, 0);
+        this.date.setUTCHours(0, 0, 0, 0);
     }
     next();
 });

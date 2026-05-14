@@ -5,7 +5,7 @@ import Advance from "../models/Advance.js";
 /* ================= HELPER ================= */
 const normalizeDate = (d) => {
   const date = new Date(d);
-  date.setHours(0, 0, 0, 0);
+  date.setUTCHours(0, 0, 0, 0);
   return date;
 };
 

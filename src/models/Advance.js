@@ -39,4 +39,12 @@ advanceSchema.index(
     { unique: true }
 );
 
+/* 🔥 NORMALIZE DATE (IMPORTANT) */
+advanceSchema.pre("save", function (next) {
+    if (this.date) {
+        this.date.setUTCHours(0, 0, 0, 0);
+    }
+    next();
+});
+
 export default mongoose.model("Advance", advanceSchema);
