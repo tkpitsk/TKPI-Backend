@@ -29,8 +29,8 @@ export const getDailyOverview = async (req, res) => {
       .populate("markedBy", "name")
       .lean();
 
-    // Filter out admins from attendance
-    attendance = attendance.filter(a => a.employee?.role !== "admin");
+    // Filter out admins from attendance (REMOVED - Show all)
+    // attendance = attendance.filter(a => a.employee?.role !== "admin");
 
     // 2. Fetch Advances
     let advances = await Advance.find({
@@ -40,8 +40,8 @@ export const getDailyOverview = async (req, res) => {
       .populate("givenBy", "name")
       .lean();
 
-    // Filter out admins from advances
-    advances = advances.filter(a => a.employee?.role !== "admin");
+    // Filter out admins from advances (REMOVED - Show all)
+    // advances = advances.filter(a => a.employee?.role !== "admin");
 
     // 3. Fetch Reminders
     const reminders = await Reminder.find({

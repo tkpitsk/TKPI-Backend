@@ -411,7 +411,7 @@ export const downloadBulkEmployeeReportPDF = async (req, res) => {
         }
 
         const employees = await User.find({
-            role: { $in: ["manager", "employee", "worker"] },
+            role: { $in: ["admin", "manager", "employee", "worker"] },
             isActive: true
         }).sort({ name: 1 }).lean();
 
