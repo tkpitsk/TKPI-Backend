@@ -22,20 +22,26 @@ export const getDailyOverview = async (req, res) => {
     endDate.setHours(23, 59, 59, 999);
 
     // 1. Fetch Attendance
-    const attendance = await Attendance.find({
+    let attendance = await Attendance.find({
       date: targetDate,
     })
-      .populate("employee", "name userId image")
+      .populate("employee", "name userId image role")
       .populate("markedBy", "name")
       .lean();
 
+    // Filter out admins from attendance
+    attendance = attendance.filter(a => a.employee?.role !== "admin");
+
     // 2. Fetch Advances
-    const advances = await Advance.find({
+    let advances = await Advance.find({
       date: targetDate,
     })
-      .populate("employee", "name userId image")
+      .populate("employee", "name userId image role")
       .populate("givenBy", "name")
       .lean();
+
+    // Filter out admins from advances
+    advances = advances.filter(a => a.employee?.role !== "admin");
 
     // 3. Fetch Reminders
     const reminders = await Reminder.find({
