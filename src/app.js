@@ -33,6 +33,7 @@ import employeeReportRoutes from "./routes/employeeReport.routes.js";
 import salaryRoutes from "./routes/salary.routes.js";
 import employeeDashboardRoutes from "./routes/employeeDashboard.routes.js";
 import supplierBaseRateRoutes from "./routes/supplierBaseRate.routes.js";
+import dailyOverviewRoutes from "./routes/dailyOverview.routes.js";
 
 
 const app = express();
@@ -112,6 +113,7 @@ app.use("/api/employee-report", employeeReportRoutes);
 app.use("/api/salary", salaryRoutes);
 app.use("/api/employee-dashboard", employeeDashboardRoutes);
 app.use("/api/supplier-base-rates", supplierBaseRateRoutes);
+app.use("/api/daily-overview", dailyOverviewRoutes);
 
 /* ================= HEALTH CHECK ================= */
 
