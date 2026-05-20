@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import Attendance from "../models/Attendance.js";
 import Advance from "../models/Advance.js";
+import User from "../models/User.js";
 
 /* ================= HELPER ================= */
 const normalizeDate = (d) => {
@@ -180,7 +181,7 @@ export const bulkMarkAttendance = async (req, res) => {
     const session = await mongoose.startSession();
 
     try {
-        const { employeeIds, startDate, endDate, status, advance: rawAdvance = 0, reason = "" } = req.body;
+        const { employeeIds, startDate, endDate, status, advance: rawAdvance = 0, reason = "", employeeAdvances } = req.body;
         const advance = Math.round(Number(rawAdvance));
 
         if (!Array.isArray(employeeIds) || employeeIds.length === 0) {
@@ -236,16 +237,31 @@ export const bulkMarkAttendance = async (req, res) => {
                     }
                 });
 
-                if (advance > 0) {
+                // Determine advance amount for this specific employee
+                let empAdvance = advance;
+                let hasCustom = false;
+                if (employeeAdvances && employeeAdvances[id] !== undefined && employeeAdvances[id] !== "") {
+                    empAdvance = Math.round(Number(employeeAdvances[id] || 0));
+                    hasCustom = true;
+                }
+
+                if (empAdvance > 0) {
                     advanceOperations.push({
                         updateOne: {
                             filter: { employee: id, date: normalizedDate },
                             update: {
-                                amount: advance,
+                                amount: empAdvance,
                                 givenBy: req.user._id,
                             },
                             upsert: true,
                             setDefaultsOnInsert: true
+                        }
+                    });
+                } else if (hasCustom && empAdvance === 0) {
+                    // Explicitly set custom advance to 0 / cleared: delete the advance record for this date
+                    advanceOperations.push({
+                        deleteOne: {
+                            filter: { employee: id, date: normalizedDate }
                         }
                     });
                 }
@@ -279,5 +295,73 @@ export const bulkMarkAttendance = async (req, res) => {
         });
     } finally {
         session.endSession();
+    }
+};
+
+/* ================= AUTO MARK PRESENT ================= */
+export const autoMarkPresent = async (req, res) => {
+    try {
+        const { date, roles } = req.body;
+        
+        if (!date) {
+            return res.status(400).json({ message: "Date is required" });
+        }
+        if (!Array.isArray(roles) || roles.length === 0) {
+            return res.status(400).json({ message: "At least one role is required" });
+        }
+
+        const targetDate = normalizeDate(date);
+
+        // 1. Find all active users with the matching roles
+        const users = await User.find({
+            role: { $in: roles },
+            isActive: true
+        }).lean();
+
+        if (users.length === 0) {
+            return res.json({ message: "No active users found for the chosen roles", count: 0 });
+        }
+
+        const userIds = users.map(u => u._id);
+
+        // 2. Find who already has attendance marked on this date
+        const existingAttendance = await Attendance.find({
+            employee: { $in: userIds },
+            date: targetDate
+        }).lean();
+
+        const markedUserIds = new Set(existingAttendance.map(a => a.employee.toString()));
+
+        // 3. Filter to find users who do NOT have attendance marked
+        const unmarkedUserIds = userIds.filter(id => !markedUserIds.has(id.toString()));
+
+        if (unmarkedUserIds.length === 0) {
+            return res.json({ message: "All matching employees already have attendance marked for this day", count: 0 });
+        }
+
+        // 4. Perform bulk insert/upsert for the unmarked employees as "present"
+        const operations = unmarkedUserIds.map(id => ({
+            updateOne: {
+                filter: { employee: id, date: targetDate },
+                update: {
+                    status: "present",
+                    markedBy: req.user._id,
+                    reason: "Auto-marked present"
+                },
+                upsert: true
+            }
+        }));
+
+        await Attendance.bulkWrite(operations);
+
+        res.json({
+            success: true,
+            message: `Successfully auto-marked ${unmarkedUserIds.length} employees as present`,
+            count: unmarkedUserIds.length
+        });
+
+    } catch (err) {
+        console.error("Auto Mark Present Error:", err);
+        res.status(500).json({ message: err.message || "Failed to auto mark attendance" });
     }
 };

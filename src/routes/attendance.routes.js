@@ -8,6 +8,7 @@ import {
     getAttendance,
     getMyAttendance,
     bulkMarkAttendance,
+    autoMarkPresent,
 } from "../controllers/attendance.controller.js";
 
 const router = express.Router();
@@ -32,6 +33,13 @@ router.post(
     requireRole("admin", "manager"),
     auditMiddleware({ action: AUDIT_ACTIONS.CREATE, entity: "ATTENDANCE_BULK" }),
     bulkMarkAttendance
+);
+
+router.post(
+    "/auto-present",
+    requireRole("admin", "manager"),
+    auditMiddleware({ action: AUDIT_ACTIONS.CREATE, entity: "ATTENDANCE_BULK" }),
+    autoMarkPresent
 );
 
 router.get("/me", getMyAttendance);

@@ -180,7 +180,11 @@ export const getAllEmployeesSummary = async (req, res) => {
                     payableDays: data.payableDays,
                     totalAdvance: Math.round(data.totalAdvance),
                     earned: Math.round(data.earned),
-                    netSalary: Math.round(data.netSalary)
+                    netSalary: Math.round(data.netSalary),
+                    rawAttendance: attendance.map(a => ({
+                        date: a.date,
+                        status: a.status
+                    }))
                 }
             });
         }
