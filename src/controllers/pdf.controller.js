@@ -383,10 +383,18 @@ export const downloadEmployeeReportPDF = async (req, res) => {
         const totalAdvance = Math.round(advances.reduce((sum, a) => sum + (a.amount || 0), 0));
         const totalDeduction = Math.round(advances.reduce((sum, a) => sum + (a.deduction || 0), 0));
 
+        /* SALARY BREAKDOWN */
+        const salary = await calculateSalary({ employee, startDate, endDate });
+
         const html = employeeReportTemplate({
             employee,
             records,
             summary: { present, absent, halfDay, totalAdvance, totalDeduction },
+            salary,
+            period: {
+                start: startDate.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
+                end: endDate.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+            },
             title: `${type.toUpperCase()} REPORT`
         });
 
@@ -461,9 +469,13 @@ export const downloadBulkEmployeeReportPDF = async (req, res) => {
             const totalAdvance = Math.round(advances.reduce((sum, a) => sum + (a.amount || 0), 0));
             const totalDeduction = Math.round(advances.reduce((sum, a) => sum + (a.deduction || 0), 0));
 
+            /* SALARY BREAKDOWN */
+            const salary = await calculateSalary({ employee, startDate, endDate });
+
             reports.push({
                 employee,
                 records,
+                salary,
                 summary: { present, absent, halfDay, totalAdvance, totalDeduction },
                 title: `${type.toUpperCase()} REPORT`,
                 period: {

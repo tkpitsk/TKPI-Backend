@@ -75,6 +75,15 @@ export const bulkEmployeeReportTemplate = ({
         .status.half-day { background: #fffbeb; color: #b45309; border-color: #fde68a; }
         .amount { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
         .footer { margin-top: 22px; padding-top: 16px; border-top: 1px dashed #d1d5db; display: flex; justify-content: space-between; gap: 12px; font-size: 12px; color: #6b7280; }
+        .payroll-table { width: 100%; border-collapse: collapse; border: 1px solid #e5e7eb; border-radius: 14px; overflow: hidden; margin-top: 4px; }
+        .payroll-table th { background: #f8fafc; color: #6b7280; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; text-align: left; padding: 11px 14px; border-bottom: 1px solid #e5e7eb; }
+        .payroll-table td { padding: 12px 14px; font-size: 13px; color: #111827; border-bottom: 1px solid #eef2f7; }
+        .payroll-table tr:last-child td { border-bottom: none; }
+        .payroll-table td.amt { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+        .net-banner { margin-top: 12px; border-radius: 14px; background: linear-gradient(135deg,#4b2733 0%,#7c3a4e 100%); padding: 18px 20px; display: flex; justify-content: space-between; align-items: center; }
+        .net-banner-label { font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.7); margin-bottom: 4px; }
+        .net-banner-value { font-size: 26px; font-weight: 800; color: #ffde5e; font-variant-numeric: tabular-nums; }
+        .net-banner-note { font-size: 11px; color: rgba(255,255,255,0.55); max-width: 200px; text-align: right; }
         @media print { body { background: #ffffff; } .sheet { border: 1px solid #e5e7eb; } }
       </style>
     </head>
@@ -147,6 +156,23 @@ export const bulkEmployeeReportTemplate = ({
                       </tbody>
                     </table>
                   ` : `<div class="empty-state"><strong>No attendance records found</strong></div>`}
+                </div>
+              </div>
+              <div class="section">
+                <h2 class="section-title">Payroll breakdown</h2>
+                <table class="payroll-table">
+                  <thead><tr><th style="width: 60%;">Particular</th><th style="width: 40%; text-align: right;">Amount</th></tr></thead>
+                  <tbody>
+                    <tr><td>Per day salary</td><td class="amt">${formatCurrency(report.salary?.perDay || 0)}</td></tr>
+                    <tr><td>Payable days</td><td class="amt">${Number(report.salary?.payableDays || 0)}</td></tr>
+                    <tr><td style="font-weight:600;">Gross earned salary</td><td class="amt" style="color:#059669;">${formatCurrency(report.salary?.earned || 0)}</td></tr>
+                    <tr><td style="color:#b91c1c;">(-) Advance taken (personal loan)</td><td class="amt" style="color:#b91c1c;">-${formatCurrency(report.summary?.totalAdvance || 0)}</td></tr>
+                    <tr><td style="color:#d97706;">(-) Advance repaid / deducted</td><td class="amt" style="color:#d97706;">-${formatCurrency(report.summary?.totalDeduction || 0)}</td></tr>
+                  </tbody>
+                </table>
+                <div class="net-banner">
+                  <div><div class="net-banner-label">Net salary payable</div><div class="net-banner-value">${formatCurrency(report.salary?.netSalary || 0)}</div></div>
+                  <div class="net-banner-note">After deducting advances and repayments from gross earned salary.</div>
                 </div>
               </div>
               <div class="footer">

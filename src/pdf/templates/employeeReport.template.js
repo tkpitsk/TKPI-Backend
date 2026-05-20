@@ -30,6 +30,7 @@ export const employeeReportTemplate = ({
     employee,
     records = [],
     summary,
+    salary,
     title,
     period = {},
     company = {},
@@ -214,6 +215,77 @@ export const employeeReportTemplate = ({
 
         .stat-value.money {
           font-size: 20px;
+        }
+
+        .payroll-table {
+          width: 100%;
+          border-collapse: collapse;
+          border-radius: 18px;
+          overflow: hidden;
+          border: 1px solid #e5e7eb;
+        }
+
+        .payroll-table th {
+          background: #f8fafc;
+          color: #6b7280;
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          text-align: left;
+          padding: 12px 16px;
+          border-bottom: 1px solid #e5e7eb;
+        }
+
+        .payroll-table td {
+          padding: 14px 16px;
+          font-size: 14px;
+          color: #111827;
+          border-bottom: 1px solid #eef2f7;
+        }
+
+        .payroll-table tr:last-child td {
+          border-bottom: none;
+        }
+
+        .payroll-table td.amt {
+          text-align: right;
+          font-variant-numeric: tabular-nums;
+          font-weight: 600;
+          white-space: nowrap;
+        }
+
+        .net-banner {
+          margin-top: 14px;
+          border-radius: 18px;
+          background: linear-gradient(135deg, #4b2733 0%, #7c3a4e 100%);
+          padding: 20px 24px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+
+        .net-banner-label {
+          font-size: 12px;
+          font-weight: 700;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+          color: rgba(255,255,255,0.72);
+          margin-bottom: 4px;
+        }
+
+        .net-banner-value {
+          font-size: 30px;
+          font-weight: 800;
+          color: #ffde5e;
+          font-variant-numeric: tabular-nums;
+        }
+
+        .net-banner-note {
+          font-size: 12px;
+          color: rgba(255,255,255,0.6);
+          max-width: 240px;
+          text-align: right;
         }
 
         .table-wrap {
@@ -476,6 +548,49 @@ export const employeeReportTemplate = ({
                 </div>
               `
         }
+            </div>
+          </div>
+
+          <div class="section">
+            <h2 class="section-title">Payroll breakdown</h2>
+            <table class="payroll-table">
+              <thead>
+                <tr>
+                  <th style="width: 60%;">Particular</th>
+                  <th style="width: 40%; text-align: right;">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Per day salary</td>
+                  <td class="amt">${formatCurrency(salary?.perDay || 0)}</td>
+                </tr>
+                <tr>
+                  <td>Payable days (Present + 0.5× Half-day)</td>
+                  <td class="amt">${Number(salary?.payableDays || 0)}</td>
+                </tr>
+                <tr>
+                  <td style="font-weight: 600;">Gross earned salary</td>
+                  <td class="amt" style="color: #059669; font-size: 15px;">${formatCurrency(salary?.earned || 0)}</td>
+                </tr>
+                <tr>
+                  <td style="color: #b91c1c;">(-) Advance taken (personal loan)</td>
+                  <td class="amt" style="color: #b91c1c;">-${formatCurrency(summary?.totalAdvance || 0)}</td>
+                </tr>
+                <tr>
+                  <td style="color: #d97706;">(-) Advance repaid / deducted this period</td>
+                  <td class="amt" style="color: #d97706;">-${formatCurrency(summary?.totalDeduction || 0)}</td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="net-banner">
+              <div>
+                <div class="net-banner-label">Net salary payable</div>
+                <div class="net-banner-value">${formatCurrency(salary?.netSalary || 0)}</div>
+              </div>
+              <div class="net-banner-note">
+                After deducting advances and repayments from gross earned salary for this period.
+              </div>
             </div>
           </div>
 
