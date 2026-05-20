@@ -12,6 +12,14 @@ const advanceSchema = new mongoose.Schema(
             type: Number,
             required: true,
             min: [0, "Advance amount cannot be negative"],
+            default: 0,
+        },
+
+        deduction: {
+            type: Number,
+            required: true,
+            min: [0, "Deduction amount cannot be negative"],
+            default: 0,
         },
 
         date: {

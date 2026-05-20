@@ -354,18 +354,22 @@ export const downloadEmployeeReportPDF = async (req, res) => {
         });
 
         const advanceMap = new Map();
+        const deductionMap = new Map();
         advances.forEach(a => {
-            advanceMap.set(
-                new Date(a.date).toDateString(),
-                a.amount
-            );
+            const dateStr = new Date(a.date).toDateString();
+            advanceMap.set(dateStr, (advanceMap.get(dateStr) || 0) + (a.amount || 0));
+            deductionMap.set(dateStr, (deductionMap.get(dateStr) || 0) + (a.deduction || 0));
         });
 
-        const records = attendance.map(a => ({
-            date: a.date,
-            status: a.status,
-            advance: advanceMap.get(new Date(a.date).toDateString()) || 0
-        }));
+        const records = attendance.map(a => {
+            const dateStr = new Date(a.date).toDateString();
+            return {
+                date: a.date,
+                status: a.status,
+                advance: advanceMap.get(dateStr) || 0,
+                deduction: deductionMap.get(dateStr) || 0,
+            };
+        });
 
         /* SUMMARY */
         let present = 0, absent = 0, halfDay = 0;
@@ -376,12 +380,13 @@ export const downloadEmployeeReportPDF = async (req, res) => {
             else halfDay++;
         });
 
-        const totalAdvance = Math.round(advances.reduce((sum, a) => sum + a.amount, 0));
+        const totalAdvance = Math.round(advances.reduce((sum, a) => sum + (a.amount || 0), 0));
+        const totalDeduction = Math.round(advances.reduce((sum, a) => sum + (a.deduction || 0), 0));
 
         const html = employeeReportTemplate({
             employee,
             records,
-            summary: { present, absent, halfDay, totalAdvance },
+            summary: { present, absent, halfDay, totalAdvance, totalDeduction },
             title: `${type.toUpperCase()} REPORT`
         });
 
@@ -429,9 +434,11 @@ export const downloadBulkEmployeeReportPDF = async (req, res) => {
             }).lean();
 
             const advanceMap = new Map();
+            const deductionMap = new Map();
             advances.forEach((a) => {
                 const key = new Date(a.date).toISOString().split("T")[0];
                 advanceMap.set(key, (advanceMap.get(key) || 0) + Number(a.amount || 0));
+                deductionMap.set(key, (deductionMap.get(key) || 0) + Number(a.deduction || 0));
             });
 
             const records = attendance.map((item) => {
@@ -440,6 +447,7 @@ export const downloadBulkEmployeeReportPDF = async (req, res) => {
                     date: item.date,
                     status: item.status,
                     advance: advanceMap.get(key) || 0,
+                    deduction: deductionMap.get(key) || 0,
                 };
             });
 
@@ -450,12 +458,13 @@ export const downloadBulkEmployeeReportPDF = async (req, res) => {
                 else if (a.status === "half-day") halfDay++;
             });
 
-            const totalAdvance = Math.round(advances.reduce((sum, a) => sum + a.amount, 0));
+            const totalAdvance = Math.round(advances.reduce((sum, a) => sum + (a.amount || 0), 0));
+            const totalDeduction = Math.round(advances.reduce((sum, a) => sum + (a.deduction || 0), 0));
 
             reports.push({
                 employee,
                 records,
-                summary: { present, absent, halfDay, totalAdvance },
+                summary: { present, absent, halfDay, totalAdvance, totalDeduction },
                 title: `${type.toUpperCase()} REPORT`,
                 period: {
                     start: startDate.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),

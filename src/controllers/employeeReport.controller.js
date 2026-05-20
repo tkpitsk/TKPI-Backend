@@ -47,6 +47,11 @@ export const getEmployeeSummary = async (req, res) => {
             0
         );
 
+        const totalDeduction = advances.reduce(
+            (sum, a) => sum + Number(a.deduction || 0),
+            0
+        );
+
         /* ================= DERIVED ================= */
         const payableDays = present + (halfDay * 0.5);
 
@@ -59,6 +64,7 @@ export const getEmployeeSummary = async (req, res) => {
                 halfDay,
                 payableDays,
                 totalAdvance,
+                totalDeduction,
             },
         });
 
@@ -95,10 +101,12 @@ export const getEmployeeDetails = async (req, res) => {
 
         /* ================= MERGE ================= */
         const advanceMap = new Map();
+        const deductionMap = new Map();
 
         advances.forEach((a) => {
             const key = getDateKey(a.date);
             advanceMap.set(key, (advanceMap.get(key) || 0) + Number(a.amount || 0));
+            deductionMap.set(key, (deductionMap.get(key) || 0) + Number(a.deduction || 0));
         });
 
         const records = attendance.map((item) => {
@@ -109,6 +117,7 @@ export const getEmployeeDetails = async (req, res) => {
                 date: item.date,
                 status: item.status,
                 advance: advanceMap.get(key) || 0,
+                deduction: deductionMap.get(key) || 0,
             };
         });
 
@@ -179,6 +188,7 @@ export const getAllEmployeesSummary = async (req, res) => {
                     halfDay,
                     payableDays: data.payableDays,
                     totalAdvance: Math.round(data.totalAdvance),
+                    totalDeduction: Math.round(data.totalDeduction || 0),
                     earned: Math.round(data.earned),
                     netSalary: Math.round(data.netSalary),
                     rawAttendance: attendance.map(a => ({

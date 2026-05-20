@@ -61,7 +61,12 @@ export const calculateSalary = async ({
         0
     );
 
-    const netSalary = Math.max(0, earned - totalAdvance);
+    const totalDeduction = advances.reduce(
+        (sum, a) => sum + Number(a.deduction || 0),
+        0
+    );
+
+    const netSalary = Math.max(0, earned - totalAdvance - totalDeduction);
 
     return {
         present,
@@ -71,6 +76,7 @@ export const calculateSalary = async ({
         perDay: round(perDay),
         earned: round(earned),
         totalAdvance: round(totalAdvance),
+        totalDeduction: round(totalDeduction),
         netSalary: round(netSalary)
     };
 };

@@ -438,8 +438,12 @@ export const salarySlipTemplate = ({
                     <td class="amount">${formatCurrency(data?.earned || 0)}</td>
                   </tr>
                   <tr>
-                    <td>Advance deduction</td>
-                    <td class="amount">${formatCurrency(data?.totalAdvance || 0)}</td>
+                    <td>Advance Taken (Personal Loan)</td>
+                    <td class="amount" style="color: #b91c1c;">-${formatCurrency(data?.totalAdvance || 0)}</td>
+                  </tr>
+                  <tr>
+                    <td>Advance Repaid / Deducted</td>
+                    <td class="amount" style="color: #b45309;">-${formatCurrency(data?.totalDeduction || 0)}</td>
                   </tr>
                   <tr>
                     <td><strong>Net salary payable</strong></td>

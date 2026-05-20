@@ -50,12 +50,17 @@ export const getEmployeeDashboard = async (req, res) => {
 
         /* ================= MERGE ================= */
         const advanceMap = new Map();
+        const deductionMap = new Map();
 
         advances.forEach(a => {
             const key = getDateKey(a.date);
             advanceMap.set(
                 key,
                 (advanceMap.get(key) || 0) + Number(a.amount || 0)
+            );
+            deductionMap.set(
+                key,
+                (deductionMap.get(key) || 0) + Number(a.deduction || 0)
             );
         });
 
@@ -65,7 +70,8 @@ export const getEmployeeDashboard = async (req, res) => {
             return {
                 date: a.date,
                 status: a.status,
-                advance: advanceMap.get(key) || 0
+                advance: advanceMap.get(key) || 0,
+                deduction: deductionMap.get(key) || 0
             };
         });
 
@@ -94,7 +100,8 @@ export const getEmployeeDashboard = async (req, res) => {
                     absent: salary.absent,
                     halfDay: salary.halfDay,
                     payableDays: salary.payableDays, // 🔥 important
-                    totalAdvance: salary.totalAdvance
+                    totalAdvance: salary.totalAdvance,
+                    totalDeduction: salary.totalDeduction
                 },
                 salary,
                 records

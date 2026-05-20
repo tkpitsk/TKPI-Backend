@@ -18,8 +18,9 @@ export const markAttendance = async (req, res) => {
   const session = await mongoose.startSession();
 
   try {
-    const { employeeId, date, status, advance: rawAdvance = 0, reason = "" } = req.body;
+    const { employeeId, date, status, advance: rawAdvance = 0, deduction: rawDeduction = 0, reason = "" } = req.body;
     const advance = Math.round(Number(rawAdvance));
+    const deduction = Math.round(Number(rawDeduction));
 
     /* ================= VALIDATION ================= */
     if (!mongoose.Types.ObjectId.isValid(employeeId)) {
@@ -49,12 +50,13 @@ export const markAttendance = async (req, res) => {
       }
     );
 
-    /* ================= ADVANCE ================= */
-    if (advance > 0) {
+    /* ================= ADVANCE & DEDUCTION ================= */
+    if (advance > 0 || deduction > 0) {
       await Advance.findOneAndUpdate(
         { employee: employeeId, date: normalizedDate },
         {
           amount: advance,
+          deduction: deduction,
           givenBy: req.user._id,
         },
         {
@@ -62,6 +64,11 @@ export const markAttendance = async (req, res) => {
           session,
           setDefaultsOnInsert: true,
         }
+      );
+    } else {
+      await Advance.findOneAndDelete(
+        { employee: employeeId, date: normalizedDate },
+        { session }
       );
     }
 
@@ -106,10 +113,12 @@ export const getAttendance = async (req, res) => {
 
     /* ================= MERGE ================= */
     const advanceMap = new Map();
+    const deductionMap = new Map();
 
     advances.forEach((a) => {
       const key = getDateKey(a.date);
-      advanceMap.set(key, (advanceMap.get(key) || 0) + a.amount);
+      advanceMap.set(key, (advanceMap.get(key) || 0) + (a.amount || 0));
+      deductionMap.set(key, (deductionMap.get(key) || 0) + (a.deduction || 0));
     });
 
     const merged = attendance.map((a) => {
@@ -119,6 +128,7 @@ export const getAttendance = async (req, res) => {
         date: a.date,
         status: a.status,
         advance: advanceMap.get(key) || 0,
+        deduction: deductionMap.get(key) || 0,
       };
     });
 
@@ -151,10 +161,12 @@ export const getMyAttendance = async (req, res) => {
 
     /* ================= MERGE ================= */
     const advanceMap = new Map();
+    const deductionMap = new Map();
 
     advances.forEach((a) => {
       const key = getDateKey(a.date);
-      advanceMap.set(key, (advanceMap.get(key) || 0) + a.amount);
+      advanceMap.set(key, (advanceMap.get(key) || 0) + (a.amount || 0));
+      deductionMap.set(key, (deductionMap.get(key) || 0) + (a.deduction || 0));
     });
 
     const merged = attendance.map((a) => {
@@ -164,6 +176,7 @@ export const getMyAttendance = async (req, res) => {
         date: a.date,
         status: a.status,
         advance: advanceMap.get(key) || 0,
+        deduction: deductionMap.get(key) || 0,
       };
     });
 
@@ -181,8 +194,9 @@ export const bulkMarkAttendance = async (req, res) => {
     const session = await mongoose.startSession();
 
     try {
-        const { employeeIds, startDate, endDate, status, advance: rawAdvance = 0, reason = "", employeeAdvances } = req.body;
+        const { employeeIds, startDate, endDate, status, advance: rawAdvance = 0, deduction: rawDeduction = 0, reason = "", employeeAdvances, employeeDeductions } = req.body;
         const advance = Math.round(Number(rawAdvance));
+        const deduction = Math.round(Number(rawDeduction));
 
         if (!Array.isArray(employeeIds) || employeeIds.length === 0) {
             return res.status(400).json({ message: "Employee IDs array is required" });
@@ -239,26 +253,35 @@ export const bulkMarkAttendance = async (req, res) => {
 
                 // Determine advance amount for this specific employee
                 let empAdvance = advance;
-                let hasCustom = false;
+                let hasCustomAdvance = false;
                 if (employeeAdvances && employeeAdvances[id] !== undefined && employeeAdvances[id] !== "") {
                     empAdvance = Math.round(Number(employeeAdvances[id] || 0));
-                    hasCustom = true;
+                    hasCustomAdvance = true;
                 }
 
-                if (empAdvance > 0) {
+                // Determine deduction amount for this specific employee
+                let empDeduction = deduction;
+                let hasCustomDeduction = false;
+                if (employeeDeductions && employeeDeductions[id] !== undefined && employeeDeductions[id] !== "") {
+                    empDeduction = Math.round(Number(employeeDeductions[id] || 0));
+                    hasCustomDeduction = true;
+                }
+
+                if (empAdvance > 0 || empDeduction > 0) {
                     advanceOperations.push({
                         updateOne: {
                             filter: { employee: id, date: normalizedDate },
                             update: {
                                 amount: empAdvance,
+                                deduction: empDeduction,
                                 givenBy: req.user._id,
                             },
                             upsert: true,
                             setDefaultsOnInsert: true
                         }
                     });
-                } else if (hasCustom && empAdvance === 0) {
-                    // Explicitly set custom advance to 0 / cleared: delete the advance record for this date
+                } else if ((hasCustomAdvance && empAdvance === 0) || (hasCustomDeduction && empDeduction === 0)) {
+                    // Explicitly set custom advance or deduction to 0 / cleared: delete the advance record for this date
                     advanceOperations.push({
                         deleteOne: {
                             filter: { employee: id, date: normalizedDate }

@@ -186,7 +186,7 @@ export const employeeReportTemplate = ({
 
         .stats {
           display: grid;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
+          grid-template-columns: repeat(5, minmax(0, 1fr));
           gap: 12px;
         }
 
@@ -424,8 +424,12 @@ export const employeeReportTemplate = ({
                 <div class="stat-value">${Number(summary?.halfDay || 0)}</div>
               </div>
               <div class="stat">
-                <div class="stat-label">Total advance</div>
-                <div class="stat-value money">${formatCurrency(summary?.totalAdvance || 0)}</div>
+                <div class="stat-label">Advance Given</div>
+                <div class="stat-value money" style="color: #059669;">${formatCurrency(summary?.totalAdvance || 0)}</div>
+              </div>
+              <div class="stat">
+                <div class="stat-label">Repaid/Deducted</div>
+                <div class="stat-value money" style="color: #d97706;">${formatCurrency(summary?.totalDeduction || 0)}</div>
               </div>
             </div>
           </div>
@@ -439,9 +443,10 @@ export const employeeReportTemplate = ({
                 <table>
                   <thead>
                     <tr>
-                      <th style="width: 32%;">Date</th>
-                      <th style="width: 28%;">Status</th>
-                      <th style="width: 40%;" class="amount">Advance</th>
+                      <th style="width: 25%;">Date</th>
+                      <th style="width: 25%;">Status</th>
+                      <th style="width: 25%;" class="amount">Advance Given</th>
+                      <th style="width: 25%;" class="amount">Repaid/Deducted</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -455,7 +460,8 @@ export const employeeReportTemplate = ({
                             ${escapeHtml(titleCase(r.status))}
                           </span>
                         </td>
-                        <td class="amount">${formatCurrency(r.advance || 0)}</td>
+                        <td class="amount" style="color: #059669;">${formatCurrency(r.advance || 0)}</td>
+                        <td class="amount" style="color: #d97706;">${formatCurrency(r.deduction || 0)}</td>
                       </tr>
                     `
                 )

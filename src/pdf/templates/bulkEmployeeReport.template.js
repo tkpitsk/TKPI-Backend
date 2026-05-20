@@ -60,7 +60,7 @@ export const bulkEmployeeReportTemplate = ({
         .info-row + .info-row { margin-top: 12px; }
         .label { font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #6b7280; margin-bottom: 5px; }
         .value { font-size: 15px; font-weight: 600; color: #111827; word-break: break-word; }
-        .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+        .stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
         .stat { border-radius: 16px; border: 1px solid #ece7df; background: #fcfbf8; padding: 14px; }
         .stat-label { font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #78716c; margin-bottom: 8px; }
         .stat-value { font-size: 22px; font-weight: 700; color: #1f2937; }
@@ -125,7 +125,8 @@ export const bulkEmployeeReportTemplate = ({
                   <div class="stat"><div class="stat-label">Present</div><div class="stat-value">${Number(report.summary?.present || 0)}</div></div>
                   <div class="stat"><div class="stat-label">Absent</div><div class="stat-value">${Number(report.summary?.absent || 0)}</div></div>
                   <div class="stat"><div class="stat-label">Half day</div><div class="stat-value">${Number(report.summary?.halfDay || 0)}</div></div>
-                  <div class="stat"><div class="stat-label">Total advance</div><div class="stat-value money">${formatCurrency(report.summary?.totalAdvance || 0)}</div></div>
+                  <div class="stat"><div class="stat-label">Advance Given</div><div class="stat-value money" style="color: #059669;">${formatCurrency(report.summary?.totalAdvance || 0)}</div></div>
+                  <div class="stat"><div class="stat-label">Repaid/Deducted</div><div class="stat-value money" style="color: #d97706;">${formatCurrency(report.summary?.totalDeduction || 0)}</div></div>
                 </div>
               </div>
               <div class="section">
@@ -133,13 +134,14 @@ export const bulkEmployeeReportTemplate = ({
                 <div class="table-wrap">
                   ${report.records?.length > 0 ? `
                     <table>
-                      <thead><tr><th style="width: 32%;">Date</th><th style="width: 28%;">Status</th><th style="width: 40%;" class="amount">Advance</th></tr></thead>
+                      <thead><tr><th style="width: 25%;">Date</th><th style="width: 25%;">Status</th><th style="width: 25%;" class="amount">Advance Given</th><th style="width: 25%;" class="amount">Repaid/Deducted</th></tr></thead>
                       <tbody>
                         ${report.records.map(r => `
                           <tr>
                             <td>${escapeHtml(formatDate(r.date))}</td>
                             <td><span class="status ${escapeHtml(r.status)}">${escapeHtml(titleCase(r.status))}</span></td>
-                            <td class="amount">${formatCurrency(r.advance || 0)}</td>
+                            <td class="amount" style="color: #059669;">${formatCurrency(r.advance || 0)}</td>
+                            <td class="amount" style="color: #d97706;">${formatCurrency(r.deduction || 0)}</td>
                           </tr>
                         `).join("")}
                       </tbody>
