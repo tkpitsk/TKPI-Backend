@@ -8,15 +8,17 @@ const round = (num) => Math.round(num || 0);
 export const calculateSalary = async ({
     employee,
     startDate,
-    endDate
+    endDate,
+    attendanceData,
+    advanceData
 }) => {
 
-    const attendance = await Attendance.find({
+    const attendance = attendanceData || await Attendance.find({
         employee: employee._id,
         date: { $gte: startDate, $lte: endDate }
     }).lean();
 
-    const advances = await Advance.find({
+    const advances = advanceData || await Advance.find({
         employee: employee._id,
         date: { $gte: startDate, $lte: endDate }
     }).lean();

@@ -151,36 +151,61 @@ export const getAllEmployeesSummary = async (req, res) => {
             isActive: true
         }).sort({ name: 1 }).lean();
 
-        const reportData = [];
+        const employeeIds = employees.map(e => e._id);
 
-        for (const employee of employees) {
-            // Use the centralized salary service
+        const allAttendance = await Attendance.find({
+            employee: { $in: employeeIds },
+            date: { $gte: startDate, $lte: endDate }
+        }).lean();
+
+        const allAdvances = await Advance.find({
+            employee: { $in: employeeIds },
+            date: { $gte: startDate, $lte: endDate }
+        }).lean();
+
+        const attendanceByEmp = {};
+        for (const a of allAttendance) {
+            const empId = a.employee.toString();
+            if (!attendanceByEmp[empId]) attendanceByEmp[empId] = [];
+            attendanceByEmp[empId].push(a);
+        }
+
+        const advanceByEmp = {};
+        for (const a of allAdvances) {
+            const empId = a.employee.toString();
+            if (!advanceByEmp[empId]) advanceByEmp[empId] = [];
+            advanceByEmp[empId].push(a);
+        }
+
+        const reportData = await Promise.all(employees.map(async (employee) => {
+            const empId = employee._id.toString();
+            const attendanceData = attendanceByEmp[empId] || [];
+            const advanceData = advanceByEmp[empId] || [];
+
+            // Use the centralized salary service with pre-fetched data
             const data = await calculateSalary({
                 employee,
                 startDate,
-                endDate
+                endDate,
+                attendanceData,
+                advanceData
             });
 
-            // Get attendance counts
-            const attendance = await Attendance.find({
-                employee: employee._id,
-                date: { $gte: startDate, $lte: endDate }
-            }).lean();
-
             let present = 0, absent = 0, halfDay = 0;
-            attendance.forEach(a => {
+            attendanceData.forEach(a => {
                 if (a.status === "present") present++;
                 else if (a.status === "absent") absent++;
                 else if (a.status === "half-day") halfDay++;
             });
 
-            reportData.push({
+            return {
                 employee: {
                     _id: employee._id,
                     name: employee.name || employee.userId,
                     userId: employee.userId,
                     role: employee.role,
-                    joiningDate: employee.createdAt
+                    joiningDate: employee.createdAt,
+                    image: employee.image
                 },
                 summary: {
                     present,
@@ -191,13 +216,13 @@ export const getAllEmployeesSummary = async (req, res) => {
                     totalDeduction: Math.round(data.totalDeduction || 0),
                     earned: Math.round(data.earned),
                     netSalary: Math.round(data.netSalary),
-                    rawAttendance: attendance.map(a => ({
+                    rawAttendance: attendanceData.map(a => ({
                         date: a.date,
                         status: a.status
                     }))
                 }
-            });
-        }
+            };
+        }));
 
         res.json({
             success: true,
