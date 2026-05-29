@@ -324,16 +324,41 @@ export const bulkMarkAttendance = async (req, res) => {
 /* ================= AUTO MARK PRESENT ================= */
 export const autoMarkPresent = async (req, res) => {
     try {
-        const { date, roles } = req.body;
+        const { date, startDate, endDate, roles } = req.body;
         
-        if (!date) {
-            return res.status(400).json({ message: "Date is required" });
+        // Support both old format (date) and new format (startDate + endDate)
+        const effectiveStartDate = startDate || date;
+        const effectiveEndDate = endDate || date;
+        
+        if (!effectiveStartDate) {
+            return res.status(400).json({ message: "Start date is required" });
         }
         if (!Array.isArray(roles) || roles.length === 0) {
             return res.status(400).json({ message: "At least one role is required" });
         }
 
-        const targetDate = normalizeDate(date);
+        // Generate date range
+        const dates = [];
+        let current = new Date(effectiveStartDate);
+        const last = effectiveEndDate ? new Date(effectiveEndDate) : new Date(effectiveStartDate);
+        
+        // Normalize dates to midnight UTC for consistent matching
+        current.setUTCHours(0, 0, 0, 0);
+        last.setUTCHours(0, 0, 0, 0);
+
+        // Safety check to prevent infinite loops or excessive ranges (e.g. > 31 days)
+        const diffDays = Math.ceil((last - current) / (1000 * 60 * 60 * 24));
+        if (diffDays > 31) {
+            return res.status(400).json({ message: "Date range cannot exceed 31 days" });
+        }
+        if (diffDays < 0) {
+            return res.status(400).json({ message: "End date must be after start date" });
+        }
+
+        while (current <= last) {
+            dates.push(new Date(current));
+            current.setUTCDate(current.getUTCDate() + 1);
+        }
 
         // 1. Find all active users with the matching roles
         const users = await User.find({
@@ -347,40 +372,49 @@ export const autoMarkPresent = async (req, res) => {
 
         const userIds = users.map(u => u._id);
 
-        // 2. Find who already has attendance marked on this date
-        const existingAttendance = await Attendance.find({
-            employee: { $in: userIds },
-            date: targetDate
-        }).lean();
+        const operations = [];
 
-        const markedUserIds = new Set(existingAttendance.map(a => a.employee.toString()));
+        // 2. Iterate through each date to check existing attendance and prepare upserts
+        for (const dateObj of dates) {
+            const targetDate = normalizeDate(dateObj);
 
-        // 3. Filter to find users who do NOT have attendance marked
-        const unmarkedUserIds = userIds.filter(id => !markedUserIds.has(id.toString()));
+            // Find who already has attendance marked on this date
+            const existingAttendance = await Attendance.find({
+                employee: { $in: userIds },
+                date: targetDate
+            }).lean();
 
-        if (unmarkedUserIds.length === 0) {
-            return res.json({ message: "All matching employees already have attendance marked for this day", count: 0 });
+            const markedUserIds = new Set(existingAttendance.map(a => a.employee.toString()));
+
+            // Filter to find users who do NOT have attendance marked for this date
+            const unmarkedUserIds = userIds.filter(id => !markedUserIds.has(id.toString()));
+
+            // Add to bulk operations for this date
+            for (const id of unmarkedUserIds) {
+                operations.push({
+                    updateOne: {
+                        filter: { employee: id, date: targetDate },
+                        update: {
+                            status: "present",
+                            markedBy: req.user._id,
+                            reason: "Auto-marked present"
+                        },
+                        upsert: true
+                    }
+                });
+            }
         }
 
-        // 4. Perform bulk insert/upsert for the unmarked employees as "present"
-        const operations = unmarkedUserIds.map(id => ({
-            updateOne: {
-                filter: { employee: id, date: targetDate },
-                update: {
-                    status: "present",
-                    markedBy: req.user._id,
-                    reason: "Auto-marked present"
-                },
-                upsert: true
-            }
-        }));
+        if (operations.length === 0) {
+            return res.json({ message: "All matching employees already have attendance marked for this period", count: 0 });
+        }
 
         await Attendance.bulkWrite(operations);
 
         res.json({
             success: true,
-            message: `Successfully auto-marked ${unmarkedUserIds.length} employees as present`,
-            count: unmarkedUserIds.length
+            message: `Successfully auto-marked ${operations.length} attendance records as present over ${dates.length} days`,
+            count: operations.length
         });
 
     } catch (err) {
