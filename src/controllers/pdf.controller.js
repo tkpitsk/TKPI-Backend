@@ -385,6 +385,9 @@ export const downloadEmployeeReportPDF = async (req, res) => {
 
         /* SALARY BREAKDOWN */
         const salary = await calculateSalary({ employee, startDate, endDate });
+        const { calculateLifetimeBalance } = await import("../services/salary.service.js");
+        const lifetimeData = await calculateLifetimeBalance({ employee, endDate });
+        salary.netAdvance = lifetimeData.netAdvance;
 
         const html = employeeReportTemplate({
             employee,
@@ -471,6 +474,9 @@ export const downloadBulkEmployeeReportPDF = async (req, res) => {
 
             /* SALARY BREAKDOWN */
             const salary = await calculateSalary({ employee, startDate, endDate });
+            const { calculateLifetimeBalance } = await import("../services/salary.service.js");
+            const lifetimeData = await calculateLifetimeBalance({ employee, endDate });
+            salary.netAdvance = lifetimeData.netAdvance;
 
             reports.push({
                 employee,
@@ -522,6 +528,9 @@ export const downloadSalarySlipPDF = async (req, res) => {
             startDate,
             endDate
         });
+        const { calculateLifetimeBalance } = await import("../services/salary.service.js");
+        const lifetimeData = await calculateLifetimeBalance({ employee, endDate });
+        data.netAdvance = lifetimeData.netAdvance;
 
         const html = salarySlipTemplate({
             employee,

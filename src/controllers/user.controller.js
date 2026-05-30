@@ -38,7 +38,29 @@ export const createUser = async (req, res) => {
             salaryType,
             salaryAmount,
             name,
-            phone
+            phone,
+            aadhar,
+            pan,
+            dob,
+            address,
+            designation,
+            reportingTime,
+            workDescription,
+            joiningDate,
+            familyMembersCount,
+            familyDependents,
+            previousWorkplace,
+            previousDesignation,
+            reasonForLeaving,
+            salaryPaymentDate,
+            iqTestResult,
+            kgTestResult,
+            personType,
+            significantAction,
+            employeeClassification,
+            incentivesProvided,
+            additionalBenefits,
+            bankAccount
         } = req.body;
 
         let { userId } = req.body;
@@ -99,10 +121,21 @@ export const createUser = async (req, res) => {
         /* ================= HASH PASSWORD ================= */
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        /* ================= IMAGE UPLOAD ================= */
+        /* ================= IMAGE UPLOADS ================= */
         let imageUrl = null;
-        if (req.file) {
-            imageUrl = await uploadToCloudinary(req.file);
+        let aadharPhotoUrl = null;
+        let panPhotoUrl = null;
+
+        if (req.files) {
+            if (req.files.image && req.files.image[0]) {
+                imageUrl = await uploadToCloudinary(req.files.image[0]);
+            }
+            if (req.files.aadharPhoto && req.files.aadharPhoto[0]) {
+                aadharPhotoUrl = await uploadToCloudinary(req.files.aadharPhoto[0]);
+            }
+            if (req.files.panPhoto && req.files.panPhoto[0]) {
+                panPhotoUrl = await uploadToCloudinary(req.files.panPhoto[0]);
+            }
         }
 
         /* ================= CREATE USER ================= */
@@ -114,7 +147,31 @@ export const createUser = async (req, res) => {
             salaryAmount: salaryAmount || 0,
             name,
             phone,
-            image: imageUrl
+            aadhar,
+            pan,
+            image: imageUrl,
+            aadharPhoto: aadharPhotoUrl,
+            panPhoto: panPhotoUrl,
+            dob: dob ? new Date(dob) : undefined,
+            address,
+            designation,
+            reportingTime,
+            workDescription,
+            joiningDate: joiningDate ? new Date(joiningDate) : undefined,
+            familyMembersCount: familyMembersCount ? Number(familyMembersCount) : 0,
+            familyDependents,
+            previousWorkplace,
+            previousDesignation,
+            reasonForLeaving,
+            salaryPaymentDate: salaryPaymentDate ? Number(salaryPaymentDate) : undefined,
+            iqTestResult,
+            kgTestResult,
+            personType,
+            significantAction,
+            employeeClassification,
+            incentivesProvided,
+            additionalBenefits,
+            bankAccount: bankAccount ? JSON.parse(bankAccount) : undefined
         });
 
         res.status(201).json({
@@ -127,6 +184,8 @@ export const createUser = async (req, res) => {
                 salaryAmount: user.salaryAmount,
                 name: user.name,
                 phone: user.phone,
+                aadhar: user.aadhar,
+                pan: user.pan,
                 isActive: user.isActive,
                 image: user.image
             }
@@ -159,7 +218,29 @@ export const updateUser = async (req, res) => {
             salaryType,
             salaryAmount,
             name,
-            phone
+            phone,
+            aadhar,
+            pan,
+            dob,
+            address,
+            designation,
+            reportingTime,
+            workDescription,
+            joiningDate,
+            familyMembersCount,
+            familyDependents,
+            previousWorkplace,
+            previousDesignation,
+            reasonForLeaving,
+            salaryPaymentDate,
+            iqTestResult,
+            kgTestResult,
+            personType,
+            significantAction,
+            employeeClassification,
+            incentivesProvided,
+            additionalBenefits,
+            bankAccount
         } = req.body;
 
         const user = await User.findById(id);
@@ -177,6 +258,28 @@ export const updateUser = async (req, res) => {
         if (typeof isActive === "boolean") user.isActive = isActive;
         if (name !== undefined) user.name = name;
         if (phone !== undefined) user.phone = phone;
+        if (aadhar !== undefined) user.aadhar = aadhar;
+        if (pan !== undefined) user.pan = pan;
+        if (dob !== undefined) user.dob = dob ? new Date(dob) : null;
+        if (address !== undefined) user.address = address;
+        if (designation !== undefined) user.designation = designation;
+        if (reportingTime !== undefined) user.reportingTime = reportingTime;
+        if (workDescription !== undefined) user.workDescription = workDescription;
+        if (joiningDate !== undefined) user.joiningDate = joiningDate ? new Date(joiningDate) : null;
+        if (familyMembersCount !== undefined) user.familyMembersCount = Number(familyMembersCount) || 0;
+        if (familyDependents !== undefined) user.familyDependents = familyDependents;
+        if (previousWorkplace !== undefined) user.previousWorkplace = previousWorkplace;
+        if (previousDesignation !== undefined) user.previousDesignation = previousDesignation;
+        if (reasonForLeaving !== undefined) user.reasonForLeaving = reasonForLeaving;
+        if (salaryPaymentDate !== undefined) user.salaryPaymentDate = Number(salaryPaymentDate) || null;
+        if (iqTestResult !== undefined) user.iqTestResult = iqTestResult;
+        if (kgTestResult !== undefined) user.kgTestResult = kgTestResult;
+        if (personType !== undefined) user.personType = personType;
+        if (significantAction !== undefined) user.significantAction = significantAction;
+        if (employeeClassification !== undefined) user.employeeClassification = employeeClassification;
+        if (incentivesProvided !== undefined) user.incentivesProvided = incentivesProvided;
+        if (additionalBenefits !== undefined) user.additionalBenefits = additionalBenefits;
+        if (bankAccount !== undefined) user.bankAccount = JSON.parse(bankAccount);
 
         /* ================= SALARY LOGIC ================= */
 
@@ -190,9 +293,17 @@ export const updateUser = async (req, res) => {
             user.salaryAmount = salaryAmount;
         }
 
-        /* ================= IMAGE UPLOAD ================= */
-        if (req.file) {
-            user.image = await uploadToCloudinary(req.file);
+        /* ================= IMAGE UPLOADS ================= */
+        if (req.files) {
+            if (req.files.image && req.files.image[0]) {
+                user.image = await uploadToCloudinary(req.files.image[0]);
+            }
+            if (req.files.aadharPhoto && req.files.aadharPhoto[0]) {
+                user.aadharPhoto = await uploadToCloudinary(req.files.aadharPhoto[0]);
+            }
+            if (req.files.panPhoto && req.files.panPhoto[0]) {
+                user.panPhoto = await uploadToCloudinary(req.files.panPhoto[0]);
+            }
         }
 
         await user.save();
@@ -396,5 +507,55 @@ export const hardDeleteUser = async (req, res) => {
         res.status(500).json({
             message: "Failed to delete user permanently"
         });
+    }
+};
+
+/* ================= GET USER STATS ================= */
+export const getUserStats = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const user = await User.findById(id);
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        // Calculate leaves taken in this financial year
+        const today = new Date();
+        let currentYear = today.getFullYear();
+        let startYear = currentYear;
+        let endYear = currentYear + 1;
+        
+        // If current month is before April (0-3), the financial year started last year
+        if (today.getMonth() < 3) {
+            startYear = currentYear - 1;
+            endYear = currentYear;
+        }
+
+        const financialYearStart = new Date(startYear, 3, 1); // April 1st
+        const financialYearEnd = new Date(endYear, 2, 31, 23, 59, 59); // March 31st
+
+        const absents = await Attendance.countDocuments({
+            employee: id,
+            status: "absent",
+            date: { $gte: financialYearStart, $lte: financialYearEnd }
+        });
+
+        const halfDays = await Attendance.countDocuments({
+            employee: id,
+            status: "half-day",
+            date: { $gte: financialYearStart, $lte: financialYearEnd }
+        });
+
+        const totalLeaves = absents + (halfDays * 0.5);
+
+        res.json({
+            financialYear: `${startYear}-${endYear}`,
+            totalLeaves,
+            absents,
+            halfDays
+        });
+    } catch (error) {
+        res.status(500).json({ message: "Failed to fetch user stats" });
     }
 };

@@ -14,7 +14,8 @@ import {
     updateUserPassword,
     deleteUser,
     getUserReferences,
-    hardDeleteUser
+    hardDeleteUser,
+    getUserStats
 } from "../controllers/user.controller.js";
 
 const router = express.Router();
@@ -31,7 +32,11 @@ router.get("/", requireRole("admin", "manager"), getAllUsers);
 router.post(
     "/",
     requireRole("admin", "manager"),
-    upload.single("image"),
+    upload.fields([
+        { name: "image", maxCount: 1 },
+        { name: "aadharPhoto", maxCount: 1 },
+        { name: "panPhoto", maxCount: 1 }
+    ]),
     auditMiddleware({
         action: AUDIT_ACTIONS.CREATE,
         entity: "USER"
@@ -43,7 +48,11 @@ router.post(
 router.put(
     "/:id",
     requireRole("admin", "manager"),
-    upload.single("image"),
+    upload.fields([
+        { name: "image", maxCount: 1 },
+        { name: "aadharPhoto", maxCount: 1 },
+        { name: "panPhoto", maxCount: 1 }
+    ]),
     auditMiddleware({
         action: AUDIT_ACTIONS.UPDATE,
         entity: "USER"
@@ -85,5 +94,8 @@ router.delete(
 
 /* ================= USER REFERENCES ================= */
 router.get("/:id/references", requireRole("admin", "manager"), getUserReferences);
+
+/* ================= USER STATS ================= */
+router.get("/:id/stats", requireRole("admin", "manager"), getUserStats);
 
 export default router;

@@ -449,6 +449,10 @@ export const salarySlipTemplate = ({
                     <td><strong>Net salary payable</strong></td>
                     <td class="amount"><strong>${formatCurrency(data?.netSalary || 0)}</strong></td>
                   </tr>
+                  <tr>
+                    <td>Net Advance (Balance)</td>
+                    <td class="amount">${formatCurrency(data?.netAdvance || 0)}</td>
+                  </tr>
                 </tbody>
               </table>
             </div>

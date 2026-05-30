@@ -581,6 +581,10 @@ export const employeeReportTemplate = ({
                   <td style="color: #d97706;">(-) Advance repaid / deducted this period</td>
                   <td class="amt" style="color: #d97706;">-${formatCurrency(summary?.totalDeduction || 0)}</td>
                 </tr>
+                <tr>
+                  <td style="font-weight: 600;">Net Advance (Balance)</td>
+                  <td class="amt" style="font-size: 15px; color: #111827;">${formatCurrency(salary?.netAdvance || 0)}</td>
+                </tr>
               </tbody>
             </table>
             <div class="net-banner">

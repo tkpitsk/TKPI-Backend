@@ -168,6 +168,7 @@ export const bulkEmployeeReportTemplate = ({
                     <tr><td style="font-weight:600;">Gross earned salary</td><td class="amt" style="color:#059669;">${formatCurrency(report.salary?.earned || 0)}</td></tr>
                     <tr><td style="color:#b91c1c;">(-) Advance taken (personal loan)</td><td class="amt" style="color:#b91c1c;">-${formatCurrency(report.summary?.totalAdvance || 0)}</td></tr>
                     <tr><td style="color:#d97706;">(-) Advance repaid / deducted</td><td class="amt" style="color:#d97706;">-${formatCurrency(report.summary?.totalDeduction || 0)}</td></tr>
+                    <tr><td style="font-weight:600;">Net Advance (Balance)</td><td class="amt" style="font-size:15px;">${formatCurrency(report.salary?.netAdvance || 0)}</td></tr>
                   </tbody>
                 </table>
                 <div class="net-banner">

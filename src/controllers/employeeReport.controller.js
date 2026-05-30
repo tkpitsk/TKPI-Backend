@@ -17,6 +17,11 @@ export const getEmployeeSummary = async (req, res) => {
             return res.status(400).json({ message: "Invalid employee ID" });
         }
 
+        const employee = await User.findById(employeeId).lean();
+        if (!employee) {
+            return res.status(404).json({ message: "Employee not found" });
+        }
+
         const startDate = new Date(start);
         const endDate = new Date(end);
 
@@ -55,16 +60,21 @@ export const getEmployeeSummary = async (req, res) => {
         /* ================= DERIVED ================= */
         const payableDays = present + (halfDay * 0.5);
 
+        // Fetch Lifetime Balance up to endDate
+        const { calculateLifetimeBalance } = await import("../services/salary.service.js");
+        const lifetimeData = await calculateLifetimeBalance({ employee, endDate });
+
         res.json({
             success: true,
             data: {
-                totalRecords: attendance.length, // 🔥 clearer name
+                totalRecords: attendance.length,
                 present,
                 absent,
                 halfDay,
                 payableDays,
                 totalAdvance,
                 totalDeduction,
+                netAdvance: lifetimeData.netAdvance, // Lifetime Running Balance
             },
         });
 
@@ -153,42 +163,80 @@ export const getAllEmployeesSummary = async (req, res) => {
 
         const employeeIds = employees.map(e => e._id);
 
-        const allAttendance = await Attendance.find({
+        // Fetch Period Data (for period salary and stats)
+        const periodAttendance = await Attendance.find({
             employee: { $in: employeeIds },
             date: { $gte: startDate, $lte: endDate }
         }).lean();
 
-        const allAdvances = await Advance.find({
+        const periodAdvances = await Advance.find({
             employee: { $in: employeeIds },
             date: { $gte: startDate, $lte: endDate }
+        }).lean();
+
+        // Fetch Lifetime Data (for netAdvance balance)
+        const lifetimeAttendance = await Attendance.find({
+            employee: { $in: employeeIds },
+            date: { $lte: endDate }
+        }).lean();
+
+        const lifetimeAdvances = await Advance.find({
+            employee: { $in: employeeIds },
+            date: { $lte: endDate }
         }).lean();
 
         const attendanceByEmp = {};
-        for (const a of allAttendance) {
+        for (const a of periodAttendance) {
             const empId = a.employee.toString();
             if (!attendanceByEmp[empId]) attendanceByEmp[empId] = [];
             attendanceByEmp[empId].push(a);
         }
 
         const advanceByEmp = {};
-        for (const a of allAdvances) {
+        for (const a of periodAdvances) {
             const empId = a.employee.toString();
             if (!advanceByEmp[empId]) advanceByEmp[empId] = [];
             advanceByEmp[empId].push(a);
         }
 
+        const lifetimeAttendanceByEmp = {};
+        for (const a of lifetimeAttendance) {
+            const empId = a.employee.toString();
+            if (!lifetimeAttendanceByEmp[empId]) lifetimeAttendanceByEmp[empId] = [];
+            lifetimeAttendanceByEmp[empId].push(a);
+        }
+
+        const lifetimeAdvanceByEmp = {};
+        for (const a of lifetimeAdvances) {
+            const empId = a.employee.toString();
+            if (!lifetimeAdvanceByEmp[empId]) lifetimeAdvanceByEmp[empId] = [];
+            lifetimeAdvanceByEmp[empId].push(a);
+        }
+
+        const { calculateLifetimeBalance } = await import("../services/salary.service.js");
+
         const reportData = await Promise.all(employees.map(async (employee) => {
             const empId = employee._id.toString();
             const attendanceData = attendanceByEmp[empId] || [];
             const advanceData = advanceByEmp[empId] || [];
+            const allAttendanceData = lifetimeAttendanceByEmp[empId] || [];
+            const allAdvanceData = lifetimeAdvanceByEmp[empId] || [];
 
-            // Use the centralized salary service with pre-fetched data
+            // Calculate Period Data
             const data = await calculateSalary({
                 employee,
                 startDate,
                 endDate,
                 attendanceData,
                 advanceData
+            });
+
+            // Calculate Lifetime Balance
+            const lifetimeData = await calculateLifetimeBalance({
+                employee,
+                endDate,
+                allAttendanceData,
+                allAdvanceData
             });
 
             let present = 0, absent = 0, halfDay = 0;
@@ -212,10 +260,11 @@ export const getAllEmployeesSummary = async (req, res) => {
                     absent,
                     halfDay,
                     payableDays: data.payableDays,
-                    totalAdvance: Math.round(data.totalAdvance),
-                    totalDeduction: Math.round(data.totalDeduction || 0),
-                    earned: Math.round(data.earned),
-                    netSalary: Math.round(data.netSalary),
+                    totalAdvance: Math.round(data.totalAdvance), // Period Advance
+                    totalDeduction: Math.round(data.totalDeduction || 0), // Period Deduction
+                    earned: Math.round(data.earned), // Period Earned
+                    netSalary: Math.round(data.netSalary), // Period Net Salary
+                    netAdvance: lifetimeData.netAdvance, // Lifetime Running Balance
                     rawAttendance: attendanceData.map(a => ({
                         date: a.date,
                         status: a.status

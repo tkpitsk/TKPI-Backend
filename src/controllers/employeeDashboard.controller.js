@@ -82,6 +82,12 @@ export const getEmployeeDashboard = async (req, res) => {
             endDate
         });
 
+        // Fetch Lifetime Balance up to endDate
+        const { calculateLifetimeBalance } = await import("../services/salary.service.js");
+        const lifetimeData = await calculateLifetimeBalance({ employee, endDate });
+        
+        salary.netAdvance = lifetimeData.netAdvance;
+
         /* ================= RESPONSE ================= */
         res.json({
             success: true,
