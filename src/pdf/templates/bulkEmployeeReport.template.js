@@ -148,7 +148,10 @@ export const bulkEmployeeReportTemplate = ({
                         ${report.records.map(r => `
                           <tr>
                             <td>${escapeHtml(formatDate(r.date))}</td>
-                            <td><span class="status ${escapeHtml(r.status)}">${escapeHtml(titleCase(r.status))}</span></td>
+                            <td>
+                              <span class="status ${escapeHtml(r.status)}">${escapeHtml(titleCase(r.status))}</span>
+                              ${r.reason ? `<div style="font-size: 11px; color: #6b7280; margin-top: 4px;">Reason: ${escapeHtml(r.reason)}</div>` : ''}
+                            </td>
                             <td class="amount" style="color: #059669;">${formatCurrency(r.advance || 0)}</td>
                             <td class="amount" style="color: #d97706;">${formatCurrency(r.deduction || 0)}</td>
                           </tr>

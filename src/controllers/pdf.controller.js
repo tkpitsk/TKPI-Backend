@@ -366,6 +366,7 @@ export const downloadEmployeeReportPDF = async (req, res) => {
             return {
                 date: a.date,
                 status: a.status,
+                reason: a.reason,
                 advance: advanceMap.get(dateStr) || 0,
                 deduction: deductionMap.get(dateStr) || 0,
             };
@@ -457,6 +458,7 @@ export const downloadBulkEmployeeReportPDF = async (req, res) => {
                 return {
                     date: item.date,
                     status: item.status,
+                    reason: item.reason,
                     advance: advanceMap.get(key) || 0,
                     deduction: deductionMap.get(key) || 0,
                 };

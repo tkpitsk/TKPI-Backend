@@ -267,7 +267,8 @@ export const getAllEmployeesSummary = async (req, res) => {
                     netAdvance: lifetimeData.netAdvance, // Lifetime Running Balance
                     rawAttendance: attendanceData.map(a => ({
                         date: a.date,
-                        status: a.status
+                        status: a.status,
+                        reason: a.reason
                     }))
                 }
             };
