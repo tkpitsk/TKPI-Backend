@@ -25,9 +25,9 @@ const router = express.Router();
 router.get("/", getProducts);
 router.get("/slug/:slug", getProductBySlug);
 
-/* ================= ADMIN ================= */
+/* ================= ADMIN & MANAGER ================= */
 router.use(authMiddleware);
-router.use(requireRole("admin"));
+router.use(requireRole("admin", "manager"));
 
 router.get("/admin", getProductsAdmin);
 

@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import Product from "../models/Product.js";
 import Variant from "../models/Variant.js";
 import Stock from "../models/Stock.js";
+import SupplierBaseRate from "../models/SupplierBaseRate.js";
 import cloudinary from "../config/cloudinary.js";
 import { validateProduct } from "../validators/product.validator.js";
 import { validateVariant } from "../validators/variant.validator.js";
@@ -62,6 +63,7 @@ export const createProduct = async (req, res) => {
         const product = await Product.create({
             ...req.body,
             categoryId: req.body.categoryId || req.body.category,
+            brandId: req.body.brandId || req.body.brand,
             hsnCode: req.body.hsnCode,
             createdBy: req.user?._id,
             galleryImages: images
@@ -169,9 +171,25 @@ export const getProductsAdmin = async (req, res) => {
 
         const products = await Product.find()
             .populate("categoryId", "name")
-            .sort({ createdAt: -1 });
+            .sort({ createdAt: -1 })
+            .lean();
 
-        res.json(products);
+        // Fetch variant counts
+        const variantCounts = await Variant.aggregate([
+            { $group: { _id: "$productId", count: { $sum: 1 } } }
+        ]);
+
+        const countMap = {};
+        variantCounts.forEach(item => {
+            countMap[item._id.toString()] = item.count;
+        });
+
+        const productsWithCount = products.map(p => ({
+            ...p,
+            variantCount: countMap[p._id.toString()] || 0
+        }));
+
+        res.json(productsWithCount);
 
     } catch (error) {
         console.error(error);
@@ -191,15 +209,15 @@ export const getProducts = async (req, res) => {
         const { category } = req.query;
 
         const filter = {
-            isActive: true
+            status: "active"
         };
 
         if (category && mongoose.Types.ObjectId.isValid(category)) {
-            filter.category = category;
+            filter.categoryId = category;
         }
 
         const products = await Product.find(filter)
-            .select("name slug galleryImages")
+            .select("name slug galleryImages shortDescription")
             .populate("categoryId", "name slug");
 
         res.json(products);
@@ -261,9 +279,27 @@ export const getProductBySlug = async (req, res) => {
                 available: quantity - reserved
             };
         });
+        /* GET LATEST SUPPLIER BASE RATE (CHEAPEST) */
+        const baseRates = await SupplierBaseRate.aggregate([
+            { $match: { categoryId: product.categoryId._id || product.categoryId } },
+            { $sort: { effectiveDate: -1 } },
+            {
+                $group: {
+                    _id: "$supplierId",
+                    latestRate: { $first: "$baseRate" }
+                }
+            },
+            { $sort: { latestRate: 1 } },
+            { $limit: 1 }
+        ]);
+
+        const cheapestRate = baseRates.length > 0 ? baseRates[0].latestRate : 0;
 
         res.json({
-            product,
+            product: {
+                ...product.toObject(),
+                baseRate: cheapestRate
+            },
             variants: variantsWithStock
         });
 
@@ -304,6 +340,7 @@ export const updateProduct = async (req, res) => {
             "standards",
             "certifications",
             "categoryId",
+            "brandId",
             "hsnCode",
             "inquiryEnabled",
             "status"
@@ -426,16 +463,18 @@ export const updateVariant = async (req, res) => {
             }
         });
 
+        console.log("RECEIVED VARIANT UPDATE:", req.body);
         if (req.body.pricingFactors) {
-            variant.pricingFactors = {
-                ...variant.pricingFactors,
-                ...req.body.pricingFactors
-            };
+            if (!variant.pricingFactors) variant.pricingFactors = {};
+            for (const key in req.body.pricingFactors) {
+                variant.pricingFactors[key] = req.body.pricingFactors[key];
+            }
+            variant.markModified('pricingFactors');
         }
 
-        const product = await Product.findById(variant.product);
+        const product = await Product.findById(variant.productId);
 
-        if (product.productType === "service") {
+        if (product && product.productType === "service") {
             return res.status(400).json({
                 message: "Service does not have variants"
             });

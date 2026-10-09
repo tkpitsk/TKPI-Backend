@@ -83,39 +83,35 @@ const variantSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 /* SKU GENERATION LOGIC */
-variantSchema.pre("save", async function (next) {
+variantSchema.pre("save", async function () {
     if (this.isNew || !this.sku) {
-        try {
-            const Product = mongoose.model("Product");
-            const Category = mongoose.model("Category");
-            const Variant = mongoose.model("Variant");
+        const Product = mongoose.model("Product");
+        const Category = mongoose.model("Category");
+        const Variant = mongoose.model("Variant");
 
-            // 1. Get Product and Category
-            const product = await Product.findById(this.productId);
-            if (!product) throw new Error("Product not found");
+        // 1. Get Product and Category
+        const product = await Product.findById(this.productId);
+        if (!product) throw new Error("Product not found");
 
-            const category = await Category.findById(product.categoryId);
-            if (!category) throw new Error("Category not found");
+        const category = await Category.findById(product.categoryId);
+        if (!category) throw new Error("Category not found");
 
-            const catShortCode = category.shortCode || "GEN";
-            const prefix = `TKPI_${catShortCode}`;
+        const catShortCode = category.shortCode || "GEN";
+        const prefix = `TKPI_${catShortCode}`;
 
-            // 2. Find the last number for this prefix
-            const lastVariant = await Variant.findOne({ sku: new RegExp(`^${prefix}_`) })
-                .sort({ skuNumber: -1 })
-                .select("skuNumber");
+        // 2. Find the last number for this prefix
+        const lastVariant = await Variant.findOne({ sku: new RegExp(`^${prefix}_`) })
+            .session(this.$session())
+            .sort({ skuNumber: -1 })
+            .select("skuNumber");
 
-            const nextNumber = (lastVariant?.skuNumber || 0) + 1;
-            const paddedNumber = String(nextNumber).padStart(3, "0");
+        const nextNumber = (lastVariant?.skuNumber || 0) + 1;
+        const paddedNumber = String(nextNumber).padStart(3, "0");
 
-            this.skuPrefix = prefix;
-            this.skuNumber = nextNumber;
-            this.sku = `${prefix}_${paddedNumber}`;
-        } catch (error) {
-            return next(error);
-        }
+        this.skuPrefix = prefix;
+        this.skuNumber = nextNumber;
+        this.sku = `${prefix}_${paddedNumber}`;
     }
-    next();
 });
 
 export default mongoose.model("Variant", variantSchema);

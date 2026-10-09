@@ -48,7 +48,7 @@ export const createCategory = async (req, res) => {
 export const getCategories = async (req, res) => {
     try {
         const categories = await Category.find({
-            isActive: true
+            status: "active"
         }).sort({ createdAt: -1 });
 
         res.json(categories);
@@ -65,7 +65,7 @@ export const getCategoryBySlug = async (req, res) => {
     try {
         const category = await Category.findOne({
             slug: req.params.slug,
-            isActive: true
+            status: "active"
         });
 
         if (!category) {
@@ -146,7 +146,7 @@ export const deactivateCategory = async (req, res) => {
             });
         }
 
-        category.isActive = false;
+        category.status = "inactive";
 
         await category.save();
 
