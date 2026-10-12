@@ -574,6 +574,43 @@ export const deactivateProduct = async (req, res) => {
     }
 };
 
+/* ================= PERMANENT DELETE PRODUCT ================= */
+export const deleteProductPermanent = async (req, res) => {
+    try {
+        const product = await Product.findById(req.params.id);
+
+        if (!product) {
+            return res.status(404).json({
+                message: "Product not found"
+            });
+        }
+
+        // Delete variants and stocks
+        await Stock.deleteMany({ productId: product._id });
+        await Variant.deleteMany({ productId: product._id });
+
+        // Clean up images from Cloudinary if needed
+        if (product.galleryImages?.length) {
+            for (const img of product.galleryImages) {
+                if (img.publicId) {
+                    try {
+                        await cloudinary.uploader.destroy(img.publicId);
+                    } catch (e) {
+                        console.error("Cloudinary destroy error:", e);
+                    }
+                }
+            }
+        }
+
+        await Product.findByIdAndDelete(req.params.id);
+
+        res.json({ message: "Product permanently deleted" });
+    } catch (error) {
+        console.error("Delete product error:", error);
+        res.status(500).json({ message: "Failed to permanently delete product" });
+    }
+};
+
 
 
 /* ================= DELETE VARIANT ================= */

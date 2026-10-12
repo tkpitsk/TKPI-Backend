@@ -8,11 +8,6 @@ export const validateProduct = (data) => {
         errors.name = "Product name is required";
     }
 
-    /* ================= HSN CODE ================= */
-    if (!data.hsnCode || typeof data.hsnCode !== "string" || data.hsnCode.trim() === "") {
-        errors.hsnCode = "HSN code is required";
-    }
-
     return {
         isValid: Object.keys(errors).length === 0,
         errors

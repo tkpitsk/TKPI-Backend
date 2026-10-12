@@ -17,6 +17,7 @@ import {
   updateVariant,
   getVariantsByProduct,
   deactivateProduct,
+  deleteProductPermanent,
   deactivateVariant
 } from "../controllers/product.controller.js";
 
@@ -59,6 +60,12 @@ router.patch(
   "/:id/deactivate",
   auditMiddleware({ action: AUDIT_ACTIONS.DELETE, entity: "PRODUCT" }),
   deactivateProduct
+);
+
+router.delete(
+  "/:id",
+  auditMiddleware({ action: AUDIT_ACTIONS.DELETE, entity: "PRODUCT" }),
+  deleteProductPermanent
 );
 
 router.patch("/variants/:id/deactivate", deactivateVariant);

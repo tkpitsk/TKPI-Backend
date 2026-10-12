@@ -69,7 +69,6 @@ const productSchema = new mongoose.Schema({
     },
     hsnCode: {
         type: String,
-        required: true,
         trim: true
     },
     inquiryEnabled: {
