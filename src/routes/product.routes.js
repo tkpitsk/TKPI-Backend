@@ -12,6 +12,7 @@ import {
   getProducts,
   getProductsAdmin,
   getProductBySlug,
+  getProductById,
   updateProduct,
   updateVariant,
   getVariantsByProduct,
@@ -42,6 +43,8 @@ router.post("/:productId/variants", createVariants);
 
 /* Better route */
 router.get("/variants/:productId", getVariantsByProduct);
+
+router.get("/:id", getProductById);
 
 router.put(
   "/:id",

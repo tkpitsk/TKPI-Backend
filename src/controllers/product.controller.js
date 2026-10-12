@@ -233,55 +233,45 @@ export const getProducts = async (req, res) => {
 
 
 
-/* ================= GET PRODUCT DETAILS ================= */
-export const getProductBySlug = async (req, res) => {
-    try {
+/* Helper to get product details with variants, stock, and base rate */
+const fetchProductDetailsWithRelations = async (product, includeInactive = false) => {
+    /* GET VARIANTS */
+    const variantQuery = { productId: product._id };
+    if (!includeInactive) {
+        variantQuery.status = "active";
+    }
 
-        const product = await Product.findOne({
-            slug: req.params.slug,
-            status: "active"
-        }).populate("categoryId", "name slug");
+    const variants = await Variant.find(variantQuery);
+    const variantIds = variants.map(v => v._id);
 
-        if (!product) {
-            return res.status(404).json({
-                message: "Product not found"
-            });
-        }
+    const stocks = await Stock.find({
+        variantId: { $in: variantIds }
+    });
 
-        /* GET VARIANTS */
-        const variants = await Variant.find({
-            productId: product._id,
-            status: "active"
-        });
+    const stockMap = {};
+    stocks.forEach(s => {
+        stockMap[s.variantId.toString()] = s;
+    });
 
-        const variantIds = variants.map(v => v._id);
+    const variantsWithStock = variants.map(v => {
+        const stock = stockMap[v._id.toString()];
+        const quantity = stock?.quantity || 0;
+        const reserved = stock?.reserved || 0;
 
-        const stocks = await Stock.find({
-            variantId: { $in: variantIds }
-        });
+        return {
+            ...v.toObject(),
+            stock: quantity,
+            reserved,
+            available: quantity - reserved
+        };
+    });
 
-        const stockMap = {};
-
-        stocks.forEach(s => {
-            stockMap[s.variantId.toString()] = s;
-        });
-
-        const variantsWithStock = variants.map(v => {
-            const stock = stockMap[v._id.toString()];
-
-            const quantity = stock?.quantity || 0;
-            const reserved = stock?.reserved || 0;
-
-            return {
-                ...v.toObject(),
-                stock: quantity,
-                reserved,
-                available: quantity - reserved
-            };
-        });
-        /* GET LATEST SUPPLIER BASE RATE (CHEAPEST) */
+    /* GET LATEST SUPPLIER BASE RATE (CHEAPEST) */
+    let cheapestRate = 0;
+    const catId = product.categoryId?._id || product.categoryId;
+    if (catId) {
         const baseRates = await SupplierBaseRate.aggregate([
-            { $match: { categoryId: product.categoryId._id || product.categoryId } },
+            { $match: { categoryId: catId } },
             { $sort: { effectiveDate: -1 } },
             {
                 $group: {
@@ -292,16 +282,60 @@ export const getProductBySlug = async (req, res) => {
             { $sort: { latestRate: 1 } },
             { $limit: 1 }
         ]);
+        cheapestRate = baseRates.length > 0 ? baseRates[0].latestRate : 0;
+    }
 
-        const cheapestRate = baseRates.length > 0 ? baseRates[0].latestRate : 0;
+    return {
+        product: {
+            ...product.toObject(),
+            baseRate: cheapestRate
+        },
+        variants: variantsWithStock
+    };
+};
 
-        res.json({
-            product: {
-                ...product.toObject(),
-                baseRate: cheapestRate
-            },
-            variants: variantsWithStock
+/* ================= GET PRODUCT DETAILS BY SLUG ================= */
+export const getProductBySlug = async (req, res) => {
+    try {
+        const includeInactive = req.query.includeInactive === "true";
+        const query = { slug: req.params.slug };
+        if (!includeInactive) {
+            query.status = "active";
+        }
+
+        const product = await Product.findOne(query).populate("categoryId", "name slug");
+
+        if (!product) {
+            return res.status(404).json({
+                message: "Product not found"
+            });
+        }
+
+        const data = await fetchProductDetailsWithRelations(product, includeInactive);
+        res.json(data);
+
+    } catch (error) {
+        console.error(error);
+
+        res.status(500).json({
+            message: "Failed to fetch product"
         });
+    }
+};
+
+/* ================= GET PRODUCT DETAILS BY ID (ADMIN & MANAGER) ================= */
+export const getProductById = async (req, res) => {
+    try {
+        const product = await Product.findById(req.params.id).populate("categoryId", "name slug");
+
+        if (!product) {
+            return res.status(404).json({
+                message: "Product not found"
+            });
+        }
+
+        const data = await fetchProductDetailsWithRelations(product, true);
+        res.json(data);
 
     } catch (error) {
         console.error(error);

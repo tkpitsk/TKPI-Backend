@@ -15,9 +15,9 @@ const router = express.Router();
 router.get("/", getBrands);
 router.get("/:id", getBrandById);
 
-/* Admin Routes */
+/* Admin & Manager Routes */
 router.use(authMiddleware);
-router.use(requireRole("admin"));
+router.use(requireRole("admin", "manager"));
 
 router.post("/", createBrand);
 router.put("/:id", updateBrand);
