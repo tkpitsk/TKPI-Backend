@@ -20,12 +20,12 @@ router.get("/", getCategories);
 router.get("/slug/:slug", getCategoryBySlug);
 
 
-/* ADMIN ROUTES */
+/* ADMIN & MANAGER ROUTES */
 
 router.post(
     "/",
     authMiddleware,
-    requireRole("admin"),
+    requireRole("admin", "manager"),
     upload.single("image"),
     createCategory
 );
@@ -33,7 +33,7 @@ router.post(
 router.put(
     "/:id",
     authMiddleware,
-    requireRole("admin"),
+    requireRole("admin", "manager"),
     upload.single("image"),
     updateCategory
 );
@@ -41,7 +41,7 @@ router.put(
 router.delete(
     "/:id",
     authMiddleware,
-    requireRole("admin"),
+    requireRole("admin", "manager"),
     deactivateCategory
 );
 
