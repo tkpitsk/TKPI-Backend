@@ -60,13 +60,20 @@ const categorySchema = new mongoose.Schema({
     }
 }, { timestamps: true });
 
-/* AUTO SLUG */
+/* AUTO SLUG & SHORT CODE */
 categorySchema.pre("save", async function () {
     if (this.isModified("name")) {
         this.slug = slugify(this.name, {
             lower: true,
             strict: true
         });
+    }
+
+    if (!this.shortCode && this.name) {
+        this.shortCode = this.name
+            .replace(/[^a-zA-Z0-9]/g, "")
+            .slice(0, 4)
+            .toUpperCase() || "GEN";
     }
 });
 

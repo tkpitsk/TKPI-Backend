@@ -39,31 +39,28 @@ export const createProduct = async (req, res) => {
             }
         }
 
-        let features = [];
-        let applications = [];
+        const arrayFields = ["applications", "industriesUsed", "advantages", "features", "standards", "certifications"];
+        const parsedArrays = {};
 
-        try {
-            features = req.body.features
-                ? typeof req.body.features === "string"
-                    ? JSON.parse(req.body.features)
-                    : req.body.features
-                : [];
+        arrayFields.forEach(field => {
+            if (req.body[field] !== undefined) {
+                try {
+                    const parsed = typeof req.body[field] === "string" ? JSON.parse(req.body[field]) : req.body[field];
+                    parsedArrays[field] = Array.isArray(parsed) ? parsed.filter(item => typeof item === "string" && item.trim() !== "" && item !== "[]") : [];
+                } catch {
+                    parsedArrays[field] = [];
+                }
+            } else {
+                parsedArrays[field] = [];
+            }
+        });
 
-            applications = req.body.applications
-                ? typeof req.body.applications === "string"
-                    ? JSON.parse(req.body.applications)
-                    : req.body.applications
-                : [];
-        } catch {
-            return res.status(400).json({
-                message: "features/applications must be valid JSON"
-            });
-        }
-
+        const brandId = (req.body.brandId || req.body.brand);
         const product = await Product.create({
             ...req.body,
+            ...parsedArrays,
             categoryId: req.body.categoryId || req.body.category,
-            brandId: req.body.brandId || req.body.brand,
+            brandId: brandId && String(brandId).trim() !== "" ? brandId : null,
             hsnCode: req.body.hsnCode,
             createdBy: req.user?._id,
             galleryImages: images
@@ -147,15 +144,17 @@ export const createVariants = async (req, res) => {
             /* ✅ HANDLE DUPLICATE ERROR */
             if (err.code === 11000) {
                 return res.status(400).json({
-                    message: "Duplicate variant exists"
+                    message: "Duplicate variant or SKU already exists"
                 });
             }
 
-            throw err;
+            return res.status(400).json({
+                message: err.message || "Failed to create variant"
+            });
         }
 
     } catch (error) {
-        console.error(error);
+        console.error("createVariants error:", error);
 
         res.status(500).json({
             message: error.message || "Internal server error"
@@ -380,13 +379,28 @@ export const updateProduct = async (req, res) => {
             "status"
         ];
 
+        const arrayFields = ["applications", "industriesUsed", "advantages", "features", "standards", "certifications"];
+
         allowedFields.forEach(field => {
             if (req.body[field] !== undefined) {
                 // Map category to categoryId
                 if (field === "category") {
-                    product.categoryId = req.body[field];
+                    product.categoryId = req.body[field] || undefined;
+                } else if (field === "categoryId") {
+                    product.categoryId = req.body[field] || undefined;
+                } else if (field === "brandId") {
+                    product.brandId = req.body[field] && req.body[field].trim() !== "" ? req.body[field] : null;
                 } else if (field === "isActive") {
                     product.status = req.body[field] ? "active" : "inactive";
+                } else if (arrayFields.includes(field)) {
+                    try {
+                        const parsed = typeof req.body[field] === "string" ? JSON.parse(req.body[field]) : req.body[field];
+                        product[field] = Array.isArray(parsed)
+                            ? parsed.filter(item => typeof item === "string" && item.trim() !== "" && item !== "[]")
+                            : [];
+                    } catch {
+                        product[field] = Array.isArray(req.body[field]) ? req.body[field] : [];
+                    }
                 } else {
                     product[field] = req.body[field];
                 }
@@ -394,6 +408,10 @@ export const updateProduct = async (req, res) => {
         });
 
         /* ================= REMOVE IMAGES ================= */
+
+        if (!Array.isArray(product.galleryImages)) {
+            product.galleryImages = [];
+        }
 
         if (req.body.removedImages) {
             let removed = [];
@@ -407,7 +425,7 @@ export const updateProduct = async (req, res) => {
             }
 
             // Remove from DB
-            product.images = product.images.filter(
+            product.galleryImages = product.galleryImages.filter(
                 img => !removed.includes(img.publicId)
             );
 
@@ -424,7 +442,7 @@ export const updateProduct = async (req, res) => {
         if (req.files?.length) {
 
             // ❗ Check max limit (5 total)
-            if (product.images.length + req.files.length > 5) {
+            if (product.galleryImages.length + req.files.length > 5) {
                 return res.status(400).json({
                     message: "Maximum 5 images allowed"
                 });
@@ -443,7 +461,7 @@ export const updateProduct = async (req, res) => {
                     stream.end(file.buffer);
                 });
 
-                product.images.push({
+                product.galleryImages.push({
                     url: result.secure_url,
                     publicId: result.public_id
                 });
@@ -625,12 +643,34 @@ export const deactivateVariant = async (req, res) => {
             });
         }
 
-        variant.isActive = false;
+        variant.status = "inactive";
         await variant.save();
 
         res.json({ message: "Variant deactivated" });
 
     } catch (error) {
+        res.status(500).json({ message: "Failed to deactivate variant" });
+    }
+};
+
+export const deleteVariant = async (req, res) => {
+    try {
+        const variant = await Variant.findById(req.params.id);
+
+        if (!variant) {
+            return res.status(404).json({
+                message: "Variant not found"
+            });
+        }
+
+        // Delete associated stock records
+        await Stock.deleteMany({ variantId: variant._id });
+
+        await Variant.findByIdAndDelete(req.params.id);
+
+        res.json({ message: "Variant deleted permanently" });
+    } catch (error) {
+        console.error("Delete variant error:", error);
         res.status(500).json({ message: "Failed to delete variant" });
     }
 };

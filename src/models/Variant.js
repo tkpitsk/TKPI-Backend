@@ -89,21 +89,41 @@ variantSchema.pre("save", async function () {
         const Category = mongoose.model("Category");
         const Variant = mongoose.model("Variant");
 
-        // 1. Get Product and Category
-        const product = await Product.findById(this.productId);
-        if (!product) throw new Error("Product not found");
+        let prefix = "TKPI_GEN";
 
-        const category = await Category.findById(product.categoryId);
-        if (!category) throw new Error("Category not found");
+        try {
+            const currentSession = this.$session ? this.$session() : undefined;
 
-        const catShortCode = category.shortCode || "GEN";
-        const prefix = `TKPI_${catShortCode}`;
+            // 1. Get Product
+            const productQuery = Product.findById(this.productId);
+            if (currentSession) productQuery.session(currentSession);
+            const product = await productQuery;
 
-        // 2. Find the last number for this prefix
-        const lastVariant = await Variant.findOne({ sku: new RegExp(`^${prefix}_`) })
-            .session(this.$session())
+            if (product && product.categoryId) {
+                // 2. Get Category
+                const categoryQuery = Category.findById(product.categoryId);
+                if (currentSession) categoryQuery.session(currentSession);
+                const category = await categoryQuery;
+
+                if (category) {
+                    const code = category.shortCode || (category.name ? category.name.replace(/[^a-zA-Z0-9]/g, "").slice(0, 4).toUpperCase() : "GEN");
+                    prefix = `TKPI_${code || "GEN"}`;
+                }
+            }
+        } catch (e) {
+            console.warn("Could not determine category shortCode for SKU generation, using default:", e);
+        }
+
+        // 3. Find the last number for this prefix
+        const variantQuery = Variant.findOne({ sku: new RegExp(`^${prefix}_`) })
             .sort({ skuNumber: -1 })
             .select("skuNumber");
+
+        if (this.$session && this.$session()) {
+            variantQuery.session(this.$session());
+        }
+
+        const lastVariant = await variantQuery;
 
         const nextNumber = (lastVariant?.skuNumber || 0) + 1;
         const paddedNumber = String(nextNumber).padStart(3, "0");

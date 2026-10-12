@@ -18,7 +18,8 @@ import {
   getVariantsByProduct,
   deactivateProduct,
   deleteProductPermanent,
-  deactivateVariant
+  deactivateVariant,
+  deleteVariant
 } from "../controllers/product.controller.js";
 
 const router = express.Router();
@@ -69,5 +70,6 @@ router.delete(
 );
 
 router.patch("/variants/:id/deactivate", deactivateVariant);
+router.delete("/variants/:id", deleteVariant);
 
 export default router;
